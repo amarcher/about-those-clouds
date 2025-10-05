@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import type { WeatherData, CloudInfo, CloudType } from './types';
 
-const supabase = createClient(
+export const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
