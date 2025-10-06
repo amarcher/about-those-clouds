@@ -5,7 +5,7 @@ import { getClientIP, getLocationFromIP } from '../../../geolocation';
 import { getWeatherData } from '../../../weather';
 import { identifyCloudType } from '../../../cloud-identification';
 import { generateCloudStory } from '../../../ai';
-import { generateSpeech } from '../../../tts';
+import { generateSpeech } from '../../../google-tts';
 import {
   hashLocation,
   hashContent,

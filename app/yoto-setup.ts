@@ -32,7 +32,7 @@ export async function createDynamicCard(
             fileSize: 1500000,
             channels: 'stereo' as const,
             format: 'mp3' as const,
-            type: 'audio' as const,
+            type: 'stream' as const,
           },
         ],
       },
