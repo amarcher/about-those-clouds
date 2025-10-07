@@ -16,27 +16,33 @@ export async function createDynamicCard(
   const streamUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/yoto/stream/${userId}/${cardId}`;
 
   const playlist = {
-    title: `Cloud Weather - ${location.city}`,
-    chapters: [
-      {
+    title: 'Cloud Weather Reporter',
+    content: {
+      chapters: [{
         key: '01',
-        title: "Today's Cloud Weather",
+        title: 'Today\'s Cloud Weather',
+        overlayLabel: '1',
+        hasStreams: true,  // ADD THIS
+        duration: 0,
+        fileSize: 0,
         display: { icon16x16: null },
-        tracks: [
-          {
-            key: '01',
-            title: `Live Cloud Weather`,
-            trackUrl: streamUrl, // Dynamic URL!
-            overlayLabel: '1',
-            duration: 90,
-            fileSize: 1500000,
-            channels: 'stereo' as const,
-            format: 'mp3' as const,
-            type: 'stream' as const,
-          },
-        ],
-      },
-    ],
+        tracks: [{
+          key: '01',
+          type: 'stream',  // Already had this
+          format: 'mp3',
+          title: 'Live Cloud Weather',
+          trackUrl: streamUrl,
+          isNew: true,  // ADD THIS
+          overlayLabel: '1'
+        }]
+      }],
+      editSettings: {  // ADD THIS
+        transcodeAudioUploads: true
+      }
+    },
+    metadata: {
+      description: 'Real-time cloud weather based on your location'
+    }
   };
 
   // Create the card via Yoto API
