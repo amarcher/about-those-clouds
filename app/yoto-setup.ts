@@ -25,7 +25,7 @@ export async function createDynamicCard(
         hasStreams: true,  // ADD THIS
         duration: 0,
         fileSize: 0,
-        display: { icon16x16: null },
+        display: { icon16x16: 'cloud' },
         tracks: [{
           key: '01',
           type: 'stream',  // Already had this
@@ -33,7 +33,8 @@ export async function createDynamicCard(
           title: 'Live Cloud Weather',
           trackUrl: streamUrl,
           isNew: true,  // ADD THIS
-          overlayLabel: '1'
+          overlayLabel: '1',
+          display: { icon16x16: 'cloud' }
         }]
       }],
       editSettings: {  // ADD THIS
@@ -41,7 +42,10 @@ export async function createDynamicCard(
       }
     },
     metadata: {
-      description: 'Real-time cloud weather based on your location'
+      description: 'Real-time cloud weather based on your location',
+      cover: {
+        imageUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/cloud-card-cover.png`
+      }
     }
   };
 
