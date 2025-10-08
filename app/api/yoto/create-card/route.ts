@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+import { createDynamicCard } from '@/app/yoto-setup';
 
 export async function POST(req: NextRequest) {
   try {
-    const { accessToken, userId } = await req.json();
+    const { accessToken, userId, location } = await req.json();
 
     if (!accessToken || !userId) {
       return NextResponse.json(
@@ -17,63 +12,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate unique card ID
-    const cardId = `cloud-weather-${userId}-${Date.now()}`;
-    const streamUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/yoto/stream/${userId}/${cardId}`;
-
-    // Create playlist with streaming URL
-    const playlist = {
-      title: 'Cloud Weather Reporter',
-      chapters: [
-        {
-          key: '01',
-          title: "Today's Cloud Weather",
-          display: { icon16x16: null },
-          tracks: [
-            {
-              key: '01',
-              title: 'Live Cloud Weather',
-              trackUrl: streamUrl,
-              overlayLabel: '1',
-              duration: 90,
-              fileSize: 1500000,
-              channels: 'stereo',
-              format: 'mp3',
-              type: 'stream',
-            },
-          ],
-        },
-      ],
+    // Default location if not provided (will use IP geolocation during playback)
+    const userLocation = location || {
+      lat: 0,
+      lon: 0,
+      city: 'Unknown',
+      region: 'Unknown'
     };
 
-    const response = await fetch('https://api.yotoplay.com/content', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content: playlist }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Yoto API failed: ${error}`);
-    }
-
-    const result = await response.json();
-
-    // Store card info
-    await supabase.from('yoto_user_cards').insert({
-      user_id: userId,
-      card_id: result.cardId || cardId,
-      stream_url: streamUrl,
-      created_at: new Date().toISOString(),
-    });
+    // Use the createDynamicCard function which includes cover art and icons
+    const { cardId, playlistUrl } = await createDynamicCard(
+      accessToken,
+      userId,
+      userLocation
+    );
 
     return NextResponse.json({
       success: true,
-      cardId: result.cardId || cardId,
-      playlistUrl: streamUrl,
+      cardId,
+      playlistUrl,
       instructions: [
         'Your dynamic cloud weather card is ready!',
         'In the Yoto app, go to "Make Your Own"',

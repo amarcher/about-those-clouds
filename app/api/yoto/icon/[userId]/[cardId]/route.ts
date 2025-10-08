@@ -82,10 +82,13 @@ export async function GET(
 ) {
   try {
     const { userId, cardId } = await params;
+    console.log('Icon request for userId:', userId, 'cardId:', cardId);
 
     // Get location from IP (same as stream endpoint)
     const ip = getClientIP(req);
+    console.log('Icon request from IP:', ip);
     const location = await getLocationFromIP(ip);
+    console.log('Icon location:', location);
 
     // Check weather cache
     const locationHash = hashLocation(location.lat, location.lon);
@@ -95,14 +98,17 @@ export async function GET(
 
     if (cachedWeather && !isCacheExpired(cachedWeather.created_at)) {
       cloudInfo = cachedWeather.cloud_info;
+      console.log('Using cached weather for icon, cloud type:', cloudInfo.type);
     } else {
       const weatherData = await getWeatherData(location.lat, location.lon);
       cloudInfo = identifyCloudType(weatherData);
       await cacheWeatherData(locationHash, weatherData, cloudInfo);
+      console.log('Fetched fresh weather for icon, cloud type:', cloudInfo.type);
     }
 
     // Generate icon based on cloud type
     const iconBuffer = await generateCloudIcon(cloudInfo.type);
+    console.log('Generated icon buffer size:', iconBuffer.length);
 
     return new NextResponse(new Uint8Array(iconBuffer), {
       headers: {
