@@ -14,6 +14,7 @@ export async function createDynamicCard(
 
   // Create playlist with streaming URL
   const streamUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/yoto/stream/${userId}/${cardId}`;
+  const iconUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/yoto/icon/${userId}/${cardId}`;
 
   const playlist = {
     title: 'Cloud Weather Reporter',
@@ -25,7 +26,7 @@ export async function createDynamicCard(
         hasStreams: true,  // ADD THIS
         duration: 0,
         fileSize: 0,
-        display: { icon16x16: 'cloud' },
+        display: { iconUrl16x16: iconUrl },
         tracks: [{
           key: '01',
           type: 'stream',  // Already had this
@@ -34,7 +35,7 @@ export async function createDynamicCard(
           trackUrl: streamUrl,
           isNew: true,  // ADD THIS
           overlayLabel: '1',
-          display: { icon16x16: 'cloud' }
+          display: { iconUrl16x16: iconUrl }
         }]
       }],
       editSettings: {  // ADD THIS
@@ -44,7 +45,7 @@ export async function createDynamicCard(
     metadata: {
       description: 'Real-time cloud weather based on your location',
       cover: {
-        imageUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/cloud-card-cover.png`
+        imageL: `${process.env.NEXT_PUBLIC_BASE_URL}/cloud-card-cover.png`
       }
     }
   };
