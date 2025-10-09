@@ -3,9 +3,12 @@ import { createDynamicCard } from '@/app/yoto-setup';
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('=== Card Creation Started ===');
     const { accessToken, userId, location } = await req.json();
+    console.log('Request data:', { userId, location });
 
     if (!accessToken || !userId) {
+      console.error('Missing required fields');
       return NextResponse.json(
         { error: 'Missing accessToken or userId' },
         { status: 400 }
@@ -20,12 +23,16 @@ export async function POST(req: NextRequest) {
       region: 'Unknown'
     };
 
+    console.log('Creating dynamic card...');
     // Use the createDynamicCard function which includes cover art and icons
     const { cardId, playlistUrl } = await createDynamicCard(
       accessToken,
       userId,
       userLocation
     );
+
+    console.log('Card created successfully:', { cardId, playlistUrl });
+    console.log('=== Card Creation Complete ===');
 
     return NextResponse.json({
       success: true,
@@ -41,7 +48,9 @@ export async function POST(req: NextRequest) {
       ],
     });
   } catch (error: any) {
-    console.error('Card creation error:', error);
+    console.error('=== Card creation error ===');
+    console.error('Error:', error);
+    console.error('Stack:', error.stack);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

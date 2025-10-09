@@ -94,8 +94,10 @@ async function streamCloudWeather(location: {
   let audioUrl;
 
   if (cachedAudio) {
+    console.log('Using cached audio for content hash:', contentHash);
     audioUrl = cachedAudio.audio_url;
   } else {
+    console.log('Generating fresh audio for content hash:', contentHash);
     const transcript = await generateCloudStory(
       cloudInfo,
       weatherData,
