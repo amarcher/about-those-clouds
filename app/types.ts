@@ -38,3 +38,9 @@ export interface Location {
   city: string;
   region: string;
 }
+
+export interface Child {
+  name: string;
+  age: number;
+  pronouns: 'he/him' | 'she/her' | 'they/them';
+}

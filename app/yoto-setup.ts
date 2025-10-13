@@ -53,10 +53,13 @@ async function uploadCoverImageToYoto(accessToken: string): Promise<{
   }
 }
 
+import type { Child } from './types';
+
 export async function createDynamicCard(
   accessToken: string,
   userId: string,
-  location: { lat: number; lon: number; city: string; region: string }
+  location: { lat: number; lon: number; city: string; region: string },
+  children?: Child[]
 ): Promise<{ cardId: string; playlistUrl: string }> {
   // Generate unique card ID
   const cardId = `cloud-weather-${userId}-${Date.now()}`;
@@ -65,12 +68,24 @@ export async function createDynamicCard(
   const coverImage = await uploadCoverImageToYoto(accessToken);
 
   // Create playlist with streaming URL
-  const streamUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/yoto/stream/${userId}/${cardId}`;
+  // Encode children data in URL parameters (privacy-friendly - stored in card, not DB)
+  const params = new URLSearchParams();
+  if (children && children.length > 0) {
+    // Only include children with names
+    const validChildren = children.filter((child) => child.name.trim());
+    if (validChildren.length > 0) {
+      params.set('children', JSON.stringify(validChildren));
+    }
+  }
+
+  const queryString = params.toString();
+  const streamUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/yoto/stream/${userId}/${cardId}${queryString ? `?${queryString}` : ''}`;
   const iconUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/yoto/icon/${userId}/${cardId}`;
 
   console.log('Stream URL:', streamUrl);
   console.log('Icon URL:', iconUrl);
   console.log('Cover image object:', coverImage);
+  console.log('Children data:', children);
 
   const content = {
     title: 'Cloud Weather Reporter',

@@ -60,10 +60,15 @@ export async function POST(req: NextRequest) {
       audioUrl = cachedAudio.audio_url;
       transcript = cachedAudio.transcript;
     } else {
-      // Generate story with Claude
-      transcript = await generateCloudStory(cloudInfo, weatherData, location);
+      // Generate story with Claude (no personalization in test endpoint)
+      transcript = await generateCloudStory(
+        cloudInfo,
+        weatherData,
+        location,
+        undefined
+      );
 
-      // Convert to speech with ElevenLabs
+      // Convert to speech with Google TTS
       const audioBuffer = await generateSpeech(transcript);
 
       // Upload audio to Supabase Storage

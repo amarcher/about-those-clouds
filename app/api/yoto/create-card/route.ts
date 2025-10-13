@@ -4,8 +4,8 @@ import { createDynamicCard } from '@/app/yoto-setup';
 export async function POST(req: NextRequest) {
   try {
     console.log('=== Card Creation Started ===');
-    const { accessToken, userId, location } = await req.json();
-    console.log('Request data:', { userId, location });
+    const { accessToken, userId, location, children } = await req.json();
+    console.log('Request data:', { userId, location, children });
 
     if (!accessToken || !userId) {
       console.error('Missing required fields');
@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     const { cardId, playlistUrl } = await createDynamicCard(
       accessToken,
       userId,
-      userLocation
+      userLocation,
+      children
     );
 
     console.log('Card created successfully:', { cardId, playlistUrl });

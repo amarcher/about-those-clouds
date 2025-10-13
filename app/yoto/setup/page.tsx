@@ -7,10 +7,16 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react'; // npm install qrcode.react
 
+interface Child {
+  name: string;
+  age: string;
+  pronouns: 'he/him' | 'she/her' | 'they/them';
+}
+
 export default function YotoSetupPage() {
-  const [step, setStep] = useState<'start' | 'authorize' | 'create' | 'done'>(
-    'start'
-  );
+  const [step, setStep] = useState<
+    'start' | 'authorize' | 'personalize' | 'create' | 'done'
+  >('start');
   const [deviceCode, setDeviceCode] = useState('');
   const [userCode, setUserCode] = useState('');
   const [verificationUri, setVerificationUri] = useState('');
@@ -18,6 +24,9 @@ export default function YotoSetupPage() {
   const [userId, setUserId] = useState('');
   const [cardInfo, setCardInfo] = useState<any>(null);
   const [pollInterval, setPollInterval] = useState(5000);
+  const [children, setChildren] = useState<Child[]>([
+    { name: '', age: '', pronouns: 'they/them' },
+  ]);
 
   async function startDeviceFlow() {
     const response = await fetch('/api/yoto/device-auth/start', {
@@ -56,7 +65,7 @@ export default function YotoSetupPage() {
       if (data.success) {
         setAccessToken(data.access_token);
         setUserId(`user_${Date.now()}`);
-        setStep('create');
+        setStep('personalize');
         return; // Stop polling
       }
 
@@ -85,12 +94,26 @@ export default function YotoSetupPage() {
     const response = await fetch('/api/yoto/create-card', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken, userId }),
+      body: JSON.stringify({ accessToken, userId, children }),
     });
 
     const data = await response.json();
     setCardInfo(data);
     setStep('done');
+  }
+
+  function addChild() {
+    setChildren([...children, { name: '', age: '', pronouns: 'they/them' }]);
+  }
+
+  function removeChild(index: number) {
+    setChildren(children.filter((_, i) => i !== index));
+  }
+
+  function updateChild(index: number, field: keyof Child, value: string) {
+    const updated = [...children];
+    updated[index] = { ...updated[index], [field]: value };
+    setChildren(updated);
   }
 
   return (
@@ -156,6 +179,117 @@ export default function YotoSetupPage() {
                 <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full mr-3"></div>
                 Waiting for authorization...
               </div>
+            </div>
+          )}
+
+          {step === 'personalize' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">
+                Personalize Your Stories
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Add your children's names to make the cloud stories more
+                engaging! (Optional - you can skip this step)
+              </p>
+
+              <div className="space-y-4 mb-6">
+                {children.map((child, index) => (
+                  <div
+                    key={index}
+                    className="bg-white border border-gray-200 rounded-lg p-4"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="font-semibold text-gray-700">
+                        Child {index + 1}
+                      </h3>
+                      {children.length > 1 && (
+                        <button
+                          onClick={() => removeChild(index)}
+                          className="text-red-500 text-sm hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          Name
+                        </label>
+                        <input
+                          type="text"
+                          value={child.name}
+                          onChange={(e) =>
+                            updateChild(index, 'name', e.target.value)
+                          }
+                          placeholder="e.g., Milo"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          Age
+                        </label>
+                        <input
+                          type="number"
+                          value={child.age}
+                          onChange={(e) =>
+                            updateChild(index, 'age', e.target.value)
+                          }
+                          placeholder="e.g., 7"
+                          min="1"
+                          max="18"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Pronouns
+                      </label>
+                      <select
+                        value={child.pronouns}
+                        onChange={(e) =>
+                          updateChild(
+                            index,
+                            'pronouns',
+                            e.target.value as Child['pronouns']
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="they/them">they/them</option>
+                        <option value="she/her">she/her</option>
+                        <option value="he/him">he/him</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={addChild}
+                className="w-full mb-4 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 border border-gray-300"
+              >
+                + Add Another Child
+              </button>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={createCard}
+                  className="flex-1 bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700"
+                >
+                  Create Card
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-4">
+                Privacy note: This information is stored only in the Yoto card
+                URL, never in our database.
+              </p>
             </div>
           )}
 

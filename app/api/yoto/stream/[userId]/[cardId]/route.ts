@@ -22,6 +22,7 @@ import {
   uploadAudio,
 } from '../../../../../cache';
 import { createClient } from '@supabase/supabase-js';
+import type { Child } from '../../../../../types';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -35,6 +36,20 @@ export async function GET(
   const { userId, cardId } = await params;
 
   try {
+    // Parse children data from URL parameters (privacy-friendly storage)
+    const url = new URL(req.url);
+    const childrenParam = url.searchParams.get('children');
+    let children: Child[] | undefined;
+
+    if (childrenParam) {
+      try {
+        children = JSON.parse(decodeURIComponent(childrenParam));
+        console.log('Parsed children data:', children);
+      } catch (e) {
+        console.error('Failed to parse children parameter:', e);
+      }
+    }
+
     // Get location from the request IP
     // This will be the Yoto player's IP when it fetches the audio
     const ip = getClientIP(req);
@@ -55,7 +70,7 @@ export async function GET(
       played_at: new Date().toISOString(),
     });
 
-    return streamCloudWeather(location);
+    return streamCloudWeather(location, children);
   } catch (error) {
     console.error('Stream error:', error);
 
@@ -66,12 +81,15 @@ export async function GET(
   }
 }
 
-async function streamCloudWeather(location: {
-  lat: number;
-  lon: number;
-  city: string;
-  region: string;
-}) {
+async function streamCloudWeather(
+  location: {
+    lat: number;
+    lon: number;
+    city: string;
+    region: string;
+  },
+  children?: Child[]
+) {
   // Check weather cache
   const locationHash = hashLocation(location.lat, location.lon);
   const cachedWeather = await getCachedWeather(locationHash);
@@ -87,13 +105,16 @@ async function streamCloudWeather(location: {
     await cacheWeatherData(locationHash, weatherData, cloudInfo);
   }
 
-  // Check audio cache
+  // Check audio cache - personalized content needs unique hash
   const contentHash = hashContent(cloudInfo, weatherData);
   const cachedAudio = await getCachedAudio(contentHash);
 
   let audioUrl;
 
-  if (cachedAudio) {
+  // Only use cache if no personalization (children empty/undefined)
+  const hasPersonalization = children && children.length > 0;
+
+  if (cachedAudio && !hasPersonalization) {
     console.log('Using cached audio for content hash:', contentHash);
     audioUrl = cachedAudio.audio_url;
   } else {
@@ -101,11 +122,16 @@ async function streamCloudWeather(location: {
     const transcript = await generateCloudStory(
       cloudInfo,
       weatherData,
-      location
+      location,
+      children
     );
     const audioBuffer = await generateSpeech(transcript);
     audioUrl = await uploadAudio(audioBuffer, contentHash);
-    await cacheAudio(contentHash, audioUrl, transcript, cloudInfo.type);
+
+    // Only cache non-personalized content (reusable)
+    if (!hasPersonalization) {
+      await cacheAudio(contentHash, audioUrl, transcript, cloudInfo.type);
+    }
   }
 
   // Redirect to the audio file (or stream it directly)

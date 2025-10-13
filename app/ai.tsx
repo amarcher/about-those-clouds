@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { CloudInfo, WeatherData } from './types';
+import type { CloudInfo, WeatherData, Child } from './types';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -8,13 +8,33 @@ const anthropic = new Anthropic({
 export async function generateCloudStory(
   cloudInfo: CloudInfo,
   weatherData: WeatherData,
-  location: { city: string; region: string }
+  location: { city: string; region: string },
+  children?: Child[]
 ): Promise<string> {
   const temp = Math.round(weatherData.main.temp);
   const windSpeed = Math.round(weatherData.wind.speed);
   const humidity = weatherData.main.humidity;
 
-  const prompt = `You are a friendly meteorologist speaking to children aged 5-10. Create a short, engaging 60-90 second audio script about the clouds currently in the sky.
+  // Build personalization context
+  let personalization = '';
+  if (children && children.length > 0) {
+    const childrenDescriptions = children
+      .map((child) => {
+        const pronounObj =
+          child.pronouns === 'he/him'
+            ? 'he/him/his'
+            : child.pronouns === 'she/her'
+              ? 'she/her/hers'
+              : 'they/them/their';
+        return `${child.name} (age ${child.age}, pronouns: ${pronounObj})`;
+      })
+      .join(', ');
+
+    personalization = `\n\nPERSONALIZATION: You are speaking directly to: ${childrenDescriptions}.
+Address them by name occasionally and use their correct pronouns. Make it feel like you're talking specifically to them!`;
+  }
+
+  const prompt = `You are a friendly meteorologist speaking to children. Create a short, engaging 60-90 second audio script about the clouds currently in the sky.${personalization}
 Current conditions:
 - Location: ${location.city}, ${location.region}
 - Cloud type: ${cloudInfo.scientificName} (${cloudInfo.kidFriendlyName})
