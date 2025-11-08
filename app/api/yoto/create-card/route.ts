@@ -40,12 +40,12 @@ export async function POST(req: NextRequest) {
       cardId,
       playlistUrl,
       instructions: [
-        'Your dynamic cloud weather card is ready!',
+        'Your "Where is Milo?" card is ready!',
         'In the Yoto app, go to "Make Your Own"',
-        'Find your new "Cloud Weather Reporter" playlist',
+        'Find your new "Where is Milo the Cloud?" playlist',
         'Link it to a blank MYO card',
-        "Every time you play it, you'll hear current weather for your location!",
-        'Take the card anywhere - it automatically detects where you are!',
+        "Every time you play, discover where Milo is floating today!",
+        'Take the card anywhere - it scans the skies wherever you are!',
       ],
     });
   } catch (error: any) {

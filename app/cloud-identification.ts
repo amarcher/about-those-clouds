@@ -4,6 +4,18 @@
 
 import type { WeatherData, CloudInfo, CloudType } from './types';
 
+// Milo-compatible cloud types (fluffy cumulus-family clouds)
+export const MILO_CLOUD_TYPES: CloudType[] = [
+  'cumulus',
+  'stratocumulus',
+  'altocumulus',
+  'cirrocumulus',
+];
+
+export function isMiloPresent(cloudInfo: CloudInfo): boolean {
+  return MILO_CLOUD_TYPES.includes(cloudInfo.type);
+}
+
 export function identifyCloudType(data: WeatherData): CloudInfo {
   const cloudCoverage = data.clouds.all;
   const weatherCondition = data.weather[0];

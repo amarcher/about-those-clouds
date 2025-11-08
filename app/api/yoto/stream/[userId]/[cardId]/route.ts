@@ -61,23 +61,45 @@ export async function GET(
     console.log(`Detected location: ${location.city}, ${location.region}`);
 
     // Track the play with location info (optional analytics)
-    await supabase.from('card_plays').insert({
-      user_id: userId,
-      card_id: cardId,
-      ip_address: ip,
-      city: location.city,
-      region: location.region,
-      played_at: new Date().toISOString(),
-    });
+    try {
+      await supabase.from('card_plays').insert({
+        user_id: userId,
+        card_id: cardId,
+        ip_address: ip,
+        city: location.city,
+        region: location.region,
+        played_at: new Date().toISOString(),
+      });
+    } catch (trackingError) {
+      // Don't fail the entire request if tracking fails
+      console.error('Failed to track play (non-critical):', trackingError);
+    }
 
     return streamCloudWeather(location, children);
   } catch (error) {
     console.error('Stream error:', error);
 
-    // Fallback to generic clear sky audio
-    const fallbackUrl =
-      'https://your-supabase-url/storage/v1/object/public/cloud-audio/fallback.mp3';
-    return Response.redirect(fallbackUrl, 302);
+    // Log specific error types for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      if ('originalError' in error) {
+        console.error('Original error:', (error as any).originalError);
+      }
+    }
+
+    // Return a simple audio message instead of redirecting to non-existent URL
+    // This ensures the Yoto player gets valid audio content even if everything fails
+    return new Response(
+      JSON.stringify({
+        error: 'Unable to generate audio content',
+        message: 'Please try again later'
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 }
 
@@ -92,7 +114,13 @@ async function streamCloudWeather(
 ) {
   // Check weather cache
   const locationHash = hashLocation(location.lat, location.lon);
-  const cachedWeather = await getCachedWeather(locationHash);
+  let cachedWeather;
+
+  try {
+    cachedWeather = await getCachedWeather(locationHash);
+  } catch (cacheError) {
+    console.error('Failed to read weather cache (will fetch fresh):', cacheError);
+  }
 
   let weatherData, cloudInfo;
 
@@ -102,12 +130,23 @@ async function streamCloudWeather(
   } else {
     weatherData = await getWeatherData(location.lat, location.lon);
     cloudInfo = identifyCloudType(weatherData);
-    await cacheWeatherData(locationHash, weatherData, cloudInfo);
+
+    try {
+      await cacheWeatherData(locationHash, weatherData, cloudInfo);
+    } catch (cacheError) {
+      console.error('Failed to cache weather data (non-critical):', cacheError);
+    }
   }
 
   // Check audio cache - personalized content needs unique hash
   const contentHash = hashContent(cloudInfo, weatherData);
-  const cachedAudio = await getCachedAudio(contentHash);
+  let cachedAudio;
+
+  try {
+    cachedAudio = await getCachedAudio(contentHash);
+  } catch (cacheError) {
+    console.error('Failed to read audio cache (will generate fresh):', cacheError);
+  }
 
   let audioUrl;
 
@@ -122,7 +161,12 @@ async function streamCloudWeather(
     const transcript = await generateCloudStory(
       cloudInfo,
       weatherData,
-      location,
+      {
+        city: location.city,
+        region: location.region,
+        lat: location.lat,
+        lon: location.lon,
+      },
       children
     );
     const audioBuffer = await generateSpeech(transcript);
@@ -130,7 +174,11 @@ async function streamCloudWeather(
 
     // Only cache non-personalized content (reusable)
     if (!hasPersonalization) {
-      await cacheAudio(contentHash, audioUrl, transcript, cloudInfo.type);
+      try {
+        await cacheAudio(contentHash, audioUrl, transcript, cloudInfo.type);
+      } catch (cacheError) {
+        console.error('Failed to cache audio (non-critical):', cacheError);
+      }
     }
   }
 

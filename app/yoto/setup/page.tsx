@@ -123,11 +123,11 @@ export default function YotoSetupPage() {
           {step === 'start' && (
             <div>
               <h1 className="text-3xl font-bold mb-4">
-                Cloud Weather Reporter
+                Where is Milo the Cloud?
               </h1>
               <p className="text-gray-600 mb-6">
-                Create a Yoto card that tells you about the clouds overhead
-                wherever you are!
+                Create a magical Yoto card that searches the skies for Milo, a friendly traveling cloud!
+                Each time you play, discover if Milo is floating overhead or on an adventure somewhere in the world.
               </p>
               <button
                 onClick={startDeviceFlow}
@@ -185,11 +185,11 @@ export default function YotoSetupPage() {
           {step === 'personalize' && (
             <div>
               <h2 className="text-2xl font-bold mb-4">
-                Personalize Your Stories
+                Personalize Milo's Adventures
               </h2>
               <p className="text-gray-600 mb-6">
-                Add your children's names to make the cloud stories more
-                engaging! (Optional - you can skip this step)
+                Add your children's names so Milo can share adventures directly with them!
+                (Optional - you can skip this step)
               </p>
 
               <div className="space-y-4 mb-6">
@@ -299,14 +299,13 @@ export default function YotoSetupPage() {
                 Authorization Complete!
               </h2>
               <p className="text-gray-600 mb-6">
-                Your card will automatically detect your location and tell you
-                about the current clouds each time you play it!
+                Your card will scan the skies wherever you are to find Milo the cloud!
               </p>
               <button
                 onClick={createCard}
                 className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700"
               >
-                Create Cloud Weather Card
+                Create Milo Card
               </button>
             </div>
           )}

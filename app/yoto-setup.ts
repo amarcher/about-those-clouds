@@ -88,16 +88,16 @@ export async function createDynamicCard(
   console.log('Children data:', children);
 
   const content = {
-    title: 'Cloud Weather Reporter',
+    title: 'Where is Milo the Cloud?',
     chapters: [
       {
         key: '01',
-        title: "Today's Cloud Weather",
+        title: "Milo's Adventure Today",
         display: { iconUrl16x16: iconUrl },
         tracks: [
           {
             key: '01',
-            title: 'Live Cloud Weather',
+            title: "Find Milo the Cloud",
             trackUrl: streamUrl,
             overlayLabel: '1',
             duration: 90,
@@ -114,17 +114,17 @@ export async function createDynamicCard(
 
   const metadata = {
     cover: coverImage,
-    description: "Learn about today's cloud weather wherever you are!",
+    description: "Discover where Milo the friendly cloud is floating today! Is Milo overhead, or on an adventure somewhere in the world?",
     languages: ['en'],
     author: 'Andrew Archer',
-    category: 'radio',
+    category: 'stories',
   };
 
   const cardPayload = {
-    title: 'Cloud Weather Reporter',
+    title: 'Where is Milo the Cloud?',
     metadata,
     content,
-    tags: ['education', 'weather', 'science'],
+    tags: ['stories', 'adventure', 'imagination', 'travel'],
   };
 
   console.log('Card payload:', JSON.stringify(cardPayload, null, 2));
