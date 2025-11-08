@@ -4,9 +4,7 @@
 const GOOGLE_CLOUD_API_KEY = process.env.GOOGLE_CLOUD_API_KEY!;
 
 export async function generateSpeech(text: string): Promise<Buffer> {
-  console.log('Generating speech with Google Cloud TTS...');
-  console.log('Text length:', text.length);
-  console.log('API key exists:', !!GOOGLE_CLOUD_API_KEY);
+  console.log(`Generating speech (${text.length} chars)...`);
 
   const response = await fetch(
     `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_API_KEY}`,
@@ -29,11 +27,11 @@ export async function generateSpeech(text: string): Promise<Buffer> {
     }
   );
 
-  console.log('Response status:', response.status);
   const responseText = await response.text();
-  console.log('Response body:', responseText);
 
   if (!response.ok) {
+    // Only log response on error
+    console.log('Error response body:', responseText.substring(0, 500));
     throw new Error(
       `Google TTS error: ${response.statusText} - ${responseText}`
     );

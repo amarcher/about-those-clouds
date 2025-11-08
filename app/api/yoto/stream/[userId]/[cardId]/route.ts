@@ -33,10 +33,11 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string; cardId: string }> }
 ) {
-  const startTime = Date.now();
   const { userId, cardId } = await params;
 
   try {
+    console.time('🎵 Total request time');
+
     // Parse children data from URL parameters (privacy-friendly storage)
     const url = new URL(req.url);
     const childrenParam = url.searchParams.get('children');
@@ -55,16 +56,15 @@ export async function GET(
     // This will be the Yoto player's IP when it fetches the audio
     const ip = getClientIP(req);
     console.log(
-      `[PERF] Stream request from IP: ${ip} for user: ${userId}, card: ${cardId}`
+      `Stream request from IP: ${ip} for user: ${userId}, card: ${cardId}`
     );
 
-    const geoStart = Date.now();
+    console.time('📍 Geolocation lookup');
     const location = await getLocationFromIP(ip);
-    console.log(`[PERF] Geolocation took ${Date.now() - geoStart}ms`);
-    console.log(`[PERF] Detected location: ${location.city}, ${location.region}`);
+    console.timeEnd('📍 Geolocation lookup');
+    console.log(`Detected location: ${location.city}, ${location.region}`);
 
     // Track the play with location info (optional analytics)
-    const trackStart = Date.now();
     try {
       await supabase.from('card_plays').insert({
         user_id: userId,
@@ -74,15 +74,14 @@ export async function GET(
         region: location.region,
         played_at: new Date().toISOString(),
       });
-      console.log(`[PERF] Play tracking took ${Date.now() - trackStart}ms`);
     } catch (trackingError) {
       // Don't fail the entire request if tracking fails
       console.error('Failed to track play (non-critical):', trackingError);
     }
 
-    const result = await streamCloudWeather(location, children);
-    console.log(`[PERF] Total request time: ${Date.now() - startTime}ms`);
-    return result;
+    const response = await streamCloudWeather(location, children);
+    console.timeEnd('🎵 Total request time');
+    return response;
   } catch (error) {
     console.error('Stream error:', error);
 
@@ -123,31 +122,28 @@ async function streamCloudWeather(
   const locationHash = hashLocation(location.lat, location.lon);
   let cachedWeather;
 
-  const weatherCacheStart = Date.now();
+  console.time('💾 Weather cache lookup');
   try {
     cachedWeather = await getCachedWeather(locationHash);
-    console.log(`[PERF] Weather cache read took ${Date.now() - weatherCacheStart}ms`);
   } catch (cacheError) {
     console.error('Failed to read weather cache (will fetch fresh):', cacheError);
   }
+  console.timeEnd('💾 Weather cache lookup');
 
   let weatherData, cloudInfo;
 
   if (cachedWeather && !isCacheExpired(cachedWeather.created_at)) {
-    console.log('[PERF] Using cached weather data');
+    console.log('✅ Using cached weather data');
     weatherData = cachedWeather.weather_data;
     cloudInfo = cachedWeather.cloud_info;
   } else {
-    const weatherApiStart = Date.now();
+    console.time('🌤️  Weather API fetch');
     weatherData = await getWeatherData(location.lat, location.lon);
-    console.log(`[PERF] Weather API call took ${Date.now() - weatherApiStart}ms`);
-
     cloudInfo = identifyCloudType(weatherData);
+    console.timeEnd('🌤️  Weather API fetch');
 
-    const weatherCacheWriteStart = Date.now();
     try {
       await cacheWeatherData(locationHash, weatherData, cloudInfo);
-      console.log(`[PERF] Weather cache write took ${Date.now() - weatherCacheWriteStart}ms`);
     } catch (cacheError) {
       console.error('Failed to cache weather data (non-critical):', cacheError);
     }
@@ -157,13 +153,13 @@ async function streamCloudWeather(
   const contentHash = hashContent(cloudInfo, weatherData);
   let cachedAudio;
 
-  const audioCacheStart = Date.now();
+  console.time('💾 Audio cache lookup');
   try {
     cachedAudio = await getCachedAudio(contentHash);
-    console.log(`[PERF] Audio cache read took ${Date.now() - audioCacheStart}ms`);
   } catch (cacheError) {
     console.error('Failed to read audio cache (will generate fresh):', cacheError);
   }
+  console.timeEnd('💾 Audio cache lookup');
 
   let audioUrl;
 
@@ -171,12 +167,12 @@ async function streamCloudWeather(
   const hasPersonalization = children && children.length > 0;
 
   if (cachedAudio && !hasPersonalization) {
-    console.log('[PERF] Using cached audio for content hash:', contentHash);
+    console.log('✅ Using cached audio for content hash:', contentHash);
     audioUrl = cachedAudio.audio_url;
   } else {
-    console.log('[PERF] Generating fresh audio for content hash:', contentHash);
+    console.log('🎨 Generating fresh audio for content hash:', contentHash);
 
-    const aiStart = Date.now();
+    console.time('🤖 AI story generation');
     const transcript = await generateCloudStory(
       cloudInfo,
       weatherData,
@@ -188,22 +184,22 @@ async function streamCloudWeather(
       },
       children
     );
-    console.log(`[PERF] AI story generation took ${Date.now() - aiStart}ms`);
+    console.timeEnd('🤖 AI story generation');
+    console.log(`📝 Generated transcript (${transcript.length} chars)`);
 
-    const ttsStart = Date.now();
+    console.time('🔊 Text-to-speech');
     const audioBuffer = await generateSpeech(transcript);
-    console.log(`[PERF] TTS conversion took ${Date.now() - ttsStart}ms`);
+    console.timeEnd('🔊 Text-to-speech');
+    console.log(`🎵 Generated audio (${(audioBuffer.length / 1024).toFixed(1)} KB)`);
 
-    const uploadStart = Date.now();
+    console.time('☁️  Upload to Supabase');
     audioUrl = await uploadAudio(audioBuffer, contentHash);
-    console.log(`[PERF] Audio upload took ${Date.now() - uploadStart}ms`);
+    console.timeEnd('☁️  Upload to Supabase');
 
     // Only cache non-personalized content (reusable)
     if (!hasPersonalization) {
-      const audioCacheWriteStart = Date.now();
       try {
         await cacheAudio(contentHash, audioUrl, transcript, cloudInfo.type);
-        console.log(`[PERF] Audio cache write took ${Date.now() - audioCacheWriteStart}ms`);
       } catch (cacheError) {
         console.error('Failed to cache audio (non-critical):', cacheError);
       }
