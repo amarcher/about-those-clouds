@@ -10,7 +10,7 @@ import { getLocationFromIP, getClientIP } from '../../../../../geolocation';
 import { getWeatherData } from '../../../../../weather';
 import { identifyCloudType } from '../../../../../cloud-identification';
 import { generateCloudStory } from '../../../../../ai';
-import { generateSpeech } from '../../../../../google-tts';
+import { generateSpeech } from '../../../../../tts'; // Using ElevenLabs for faster TTS
 import {
   hashLocation,
   hashContent,
