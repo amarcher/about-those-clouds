@@ -34,9 +34,11 @@ export async function GET(
   { params }: { params: Promise<{ userId: string; cardId: string }> }
 ) {
   const { userId, cardId } = await params;
+  const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    console.time('🎵 Total request time');
+    const startTime = Date.now();
+    console.log(`[${requestId}] 🎵 Starting request`);
 
     // Parse children data from URL parameters (privacy-friendly storage)
     const url = new URL(req.url);
@@ -59,10 +61,10 @@ export async function GET(
       `Stream request from IP: ${ip} for user: ${userId}, card: ${cardId}`
     );
 
-    console.time('📍 Geolocation lookup');
+    const geoStart = Date.now();
     const location = await getLocationFromIP(ip);
-    console.timeEnd('📍 Geolocation lookup');
-    console.log(`Detected location: ${location.city}, ${location.region}`);
+    console.log(`[${requestId}] 📍 Geolocation lookup: ${Date.now() - geoStart}ms`);
+    console.log(`[${requestId}] Detected location: ${location.city}, ${location.region}`);
 
     // Track the play with location info (optional analytics)
     try {
@@ -79,8 +81,8 @@ export async function GET(
       console.error('Failed to track play (non-critical):', trackingError);
     }
 
-    const response = await streamCloudWeather(location, children);
-    console.timeEnd('🎵 Total request time');
+    const response = await streamCloudWeather(location, children, requestId);
+    console.log(`[${requestId}] 🎵 Total request time: ${Date.now() - startTime}ms`);
     return response;
   } catch (error) {
     console.error('Stream error:', error);
@@ -116,36 +118,39 @@ async function streamCloudWeather(
     city: string;
     region: string;
   },
-  children?: Child[]
+  children?: Child[],
+  requestId?: string
 ) {
+  const rid = requestId || 'unknown';
+
   // Check weather cache
   const locationHash = hashLocation(location.lat, location.lon);
   let cachedWeather;
 
-  console.time('💾 Weather cache lookup');
+  const weatherCacheStart = Date.now();
   try {
     cachedWeather = await getCachedWeather(locationHash);
   } catch (cacheError) {
-    console.error('Failed to read weather cache (will fetch fresh):', cacheError);
+    console.error(`[${rid}] Failed to read weather cache (will fetch fresh):`, cacheError);
   }
-  console.timeEnd('💾 Weather cache lookup');
+  console.log(`[${rid}] 💾 Weather cache lookup: ${Date.now() - weatherCacheStart}ms`);
 
   let weatherData, cloudInfo;
 
   if (cachedWeather && !isCacheExpired(cachedWeather.created_at)) {
-    console.log('✅ Using cached weather data');
+    console.log(`[${rid}] ✅ Using cached weather data`);
     weatherData = cachedWeather.weather_data;
     cloudInfo = cachedWeather.cloud_info;
   } else {
-    console.time('🌤️  Weather API fetch');
+    const weatherApiStart = Date.now();
     weatherData = await getWeatherData(location.lat, location.lon);
     cloudInfo = identifyCloudType(weatherData);
-    console.timeEnd('🌤️  Weather API fetch');
+    console.log(`[${rid}] 🌤️  Weather API fetch: ${Date.now() - weatherApiStart}ms`);
 
     try {
       await cacheWeatherData(locationHash, weatherData, cloudInfo);
     } catch (cacheError) {
-      console.error('Failed to cache weather data (non-critical):', cacheError);
+      console.error(`[${rid}] Failed to cache weather data (non-critical):`, cacheError);
     }
   }
 
@@ -153,13 +158,13 @@ async function streamCloudWeather(
   const contentHash = hashContent(cloudInfo, weatherData);
   let cachedAudio;
 
-  console.time('💾 Audio cache lookup');
+  const audioCacheStart = Date.now();
   try {
     cachedAudio = await getCachedAudio(contentHash);
   } catch (cacheError) {
-    console.error('Failed to read audio cache (will generate fresh):', cacheError);
+    console.error(`[${rid}] Failed to read audio cache (will generate fresh):`, cacheError);
   }
-  console.timeEnd('💾 Audio cache lookup');
+  console.log(`[${rid}] 💾 Audio cache lookup: ${Date.now() - audioCacheStart}ms`);
 
   let audioUrl;
 
@@ -167,12 +172,12 @@ async function streamCloudWeather(
   const hasPersonalization = children && children.length > 0;
 
   if (cachedAudio && !hasPersonalization) {
-    console.log('✅ Using cached audio for content hash:', contentHash);
+    console.log(`[${rid}] ✅ Using cached audio for content hash: ${contentHash}`);
     audioUrl = cachedAudio.audio_url;
   } else {
-    console.log('🎨 Generating fresh audio for content hash:', contentHash);
+    console.log(`[${rid}] 🎨 Generating fresh audio for content hash: ${contentHash}`);
 
-    console.time('🤖 AI story generation');
+    const aiStart = Date.now();
     const transcript = await generateCloudStory(
       cloudInfo,
       weatherData,
@@ -184,24 +189,24 @@ async function streamCloudWeather(
       },
       children
     );
-    console.timeEnd('🤖 AI story generation');
-    console.log(`📝 Generated transcript (${transcript.length} chars)`);
+    console.log(`[${rid}] 🤖 AI story generation: ${Date.now() - aiStart}ms`);
+    console.log(`[${rid}] 📝 Generated transcript (${transcript.length} chars)`);
 
-    console.time('🔊 Text-to-speech');
+    const ttsStart = Date.now();
     const audioBuffer = await generateSpeech(transcript);
-    console.timeEnd('🔊 Text-to-speech');
-    console.log(`🎵 Generated audio (${(audioBuffer.length / 1024).toFixed(1)} KB)`);
+    console.log(`[${rid}] 🔊 Text-to-speech: ${Date.now() - ttsStart}ms`);
+    console.log(`[${rid}] 🎵 Generated audio (${(audioBuffer.length / 1024).toFixed(1)} KB)`);
 
-    console.time('☁️  Upload to Supabase');
+    const uploadStart = Date.now();
     audioUrl = await uploadAudio(audioBuffer, contentHash);
-    console.timeEnd('☁️  Upload to Supabase');
+    console.log(`[${rid}] ☁️  Upload to Supabase: ${Date.now() - uploadStart}ms`);
 
     // Only cache non-personalized content (reusable)
     if (!hasPersonalization) {
       try {
         await cacheAudio(contentHash, audioUrl, transcript, cloudInfo.type);
       } catch (cacheError) {
-        console.error('Failed to cache audio (non-critical):', cacheError);
+        console.error(`[${rid}] Failed to cache audio (non-critical):`, cacheError);
       }
     }
   }
