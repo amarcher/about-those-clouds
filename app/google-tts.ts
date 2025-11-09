@@ -15,7 +15,7 @@ export async function generateSpeech(text: string): Promise<Buffer> {
         input: { text },
         voice: {
           languageCode: 'en-US',
-          name: 'en-US-Neural2-C',
+          name: 'en-US-Journey-F', // Journey voice: friendly storyteller, more expressive
           ssmlGender: 'FEMALE',
         },
         audioConfig: {
