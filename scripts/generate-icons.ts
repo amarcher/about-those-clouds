@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import fs from 'fs/promises';
 import path from 'path';
 
-const ICON_SIZE = 128;
+const ICON_SIZE = 16;
 
 // Map cloud types to visual designs
 const CLOUD_DESIGNS: Record<string, { bg: string; content: string }> = {
