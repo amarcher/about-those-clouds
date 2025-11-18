@@ -11,6 +11,28 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Generate accurate kid-friendly distance comparisons
+function getKidFriendlyDistance(miles: number): string {
+  if (miles < 10) {
+    return `just ${miles} mile${miles === 1 ? '' : 's'} away`;
+  } else if (miles < 50) {
+    const schoolBuses = Math.round(miles * 293); // 1 mile ≈ 293 school buses (18 feet each)
+    return `about ${miles} miles away - that's like lining up ${schoolBuses.toLocaleString()} school buses!`;
+  } else if (miles < 200) {
+    const hours = Math.round(miles / 60); // driving at 60mph
+    return `about ${miles} miles away - that's about ${hours} hour${hours === 1 ? '' : 's'} by car`;
+  } else if (miles < 1000) {
+    const footballFields = Math.round((miles * 5280) / 360); // 1 mile = 5280 feet, football field = 360 feet
+    return `about ${miles.toLocaleString()} miles away - that's like ${footballFields.toLocaleString()} football fields!`;
+  } else if (miles < 3000) {
+    const states = Math.round(miles / 200); // rough average state width
+    return `about ${miles.toLocaleString()} miles away - that's like crossing ${states} states!`;
+  } else {
+    const country = miles > 2500 ? 'all the way across the United States' : 'halfway across the country';
+    return `about ${miles.toLocaleString()} miles away - that's ${country}!`;
+  }
+}
+
 export async function generateCloudStory(
   cloudInfo: CloudInfo,
   weatherData: WeatherData,
@@ -144,6 +166,9 @@ async function generateMiloAwayStory(
         ? 'in about a day'
         : `in about ${daysToReturn} days`;
 
+  // Get accurate kid-friendly distance comparison
+  const kidFriendlyDistance = getKidFriendlyDistance(distance);
+
   const prompt = `You are an enthusiastic storyteller sharing news with children about where Milo the Cloud is today!${personalization}
 
 MILO THE CLOUD CHARACTER:
@@ -155,7 +180,7 @@ CURRENT SITUATION - MILO IS SOMEWHERE ELSE 🔍
 - Listener's location: ${location.city}, ${location.region}
 - Current sky: ${cloudInfo.scientificName} (${cloudInfo.kidFriendlyName}) - NOT Milo today
 - Milo's location: ${adventureCity.city}, ${adventureCity.country}
-- Distance away: ${distance.toLocaleString()} miles
+- Distance away: ${kidFriendlyDistance}
 - What Milo is watching: ${adventureCity.event}
 - Temperature here: ${temp}°F, Wind: ${windSpeed} mph
 - When Milo might return: ${returnEstimate}
@@ -167,7 +192,7 @@ Create a 60-90 second audio story that:
 
 2. **Milo's Current Adventure** (35-45 sec): Paint a vivid, exciting picture of Milo's current location in ${adventureCity.city}, ${adventureCity.country}. Describe what Milo is watching: "${adventureCity.event}". Make it magical - what does Milo see from the sky? What happy things are happening? Use sensory details (colors, sounds, feelings).
 
-3. **The Distance** (10-15 sec): Explain that Milo is ${distance.toLocaleString()} miles away - put this in kid-friendly terms (like "that's about [X big thing]" if distance is huge).
+3. **The Distance** (10-15 sec): Mention that Milo is ${kidFriendlyDistance}. Use this EXACT phrasing - don't make up your own comparisons.
 
 4. **When Milo Returns** (15-20 sec): Based on the wind and weather, Milo might drift back to ${location.city} ${returnEstimate}! Encourage them to check back - maybe Milo will be floating overhead next time they look up!
 
