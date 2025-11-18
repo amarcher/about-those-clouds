@@ -5,19 +5,20 @@
 import type { CloudType } from './types';
 
 // Map cloud types to Yoto public emoji icon IDs
+// Using available icons from Yoto's public API
 // Format: yoto:#HASH_ID
 export const CLOUD_ICON_MAP: Record<CloudType, string> = {
-  clear: 'yoto:#mK3HNIpyYnhz2Yp5RPhLXLKOiRWHSAwxFrMQmh9XYus',
-  cumulus: 'yoto:#gCgNJrpHZ186Hd1ttD-k0R2Cf38FbPW3riwe27WAiJA',
-  stratus: 'yoto:#1vqi7TbtDFUTSxI_oGbV7pzdxmo8mQfNkF28oejlhuE',
-  stratocumulus: 'yoto:#JLTJueAzxOwxWJkmcLQWfAUJttJC05BbSU2WfRIutCk',
-  nimbostratus: 'yoto:#aNVbUvb4CzoaEMctPdvtaM2oivo6G5MP4DMuthHtbuo',
-  cumulonimbus: 'yoto:#EiEvE_d2TnHauFJtQj_jqA2NEWNqRalWuAyZ-wMd3Ag',
-  cirrus: 'yoto:#UrFx-26vO0Y3nOe7OlYVeUd97ikpQ8WC3MgjO3ynqo4',
-  cirrocumulus: 'yoto:#V0APu-QUyc7AHuad6vusSV4gwtgffkyYqRshCx7VyrA',
-  cirrostratus: 'yoto:#iylNTFWzISGseY7HLLveUbli051TyYuuNYHHei_aWp0',
-  altocumulus: 'yoto:#XPr0F6yDowK5h5Y_zUZSL6GPaVNfY9SGuPl5OxD6oPQ',
-  altostratus: 'yoto:#75CyQHuG2h-4-wN72mSKWFpZ7Q4dRlT9s1E-TxEPDaM',
+  clear: 'yoto:#5fbc4235c456ea000809ade5', // Sun
+  cumulus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
+  stratus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
+  stratocumulus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
+  nimbostratus: 'yoto:#61a781341a0b8b0009fd383a', // Umbrella (rain)
+  cumulonimbus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud (has lightning/storm tags)
+  cirrus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
+  cirrocumulus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
+  cirrostratus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
+  altocumulus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
+  altostratus: 'yoto:#61a77e5e1a0b8b0009fd380e', // Cloud
 };
 
 export function getCloudIcon(cloudType: CloudType): string {
