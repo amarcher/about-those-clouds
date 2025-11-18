@@ -87,13 +87,17 @@ export async function createDynamicCard(
   console.log('Cover image object:', coverImage);
   console.log('Children data:', children);
 
+  // Use static Yoto icon ID (cumulus cloud) instead of dynamic URL
+  // Dynamic iconUrl16x16 requires YOTO_ACCESS_TOKEN which may not be available
+  const staticCloudIcon = 'yoto:#gCgNJrpHZ186Hd1ttD-k0R2Cf38FbPW3riwe27WAiJA'; // Cumulus
+
   const content = {
     title: 'Where is Milo the Cloud?',
     chapters: [
       {
         key: '01',
         title: "Milo's Adventure Today",
-        display: { iconUrl16x16: iconUrl },
+        display: { icon16x16: staticCloudIcon },
         tracks: [
           {
             key: '01',
@@ -105,7 +109,7 @@ export async function createDynamicCard(
             channels: 'stereo',
             format: 'mp3',
             type: 'stream',
-            display: { iconUrl16x16: iconUrl },
+            display: { icon16x16: staticCloudIcon },
           },
         ],
       },
