@@ -177,6 +177,10 @@ async function streamCloudWeather(
   } else {
     console.log(`[${rid}] 🎨 Generating fresh audio for content hash: ${contentHash}`);
 
+    // Create deterministic seed for Milo location (changes every hour)
+    const now = new Date();
+    const hourSeed = `${locationHash}-${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}`;
+
     const aiStart = Date.now();
     const transcript = await generateCloudStory(
       cloudInfo,
@@ -187,7 +191,8 @@ async function streamCloudWeather(
         lat: location.lat,
         lon: location.lon,
       },
-      children
+      children,
+      hourSeed
     );
     console.log(`[${rid}] 🤖 AI story generation: ${Date.now() - aiStart}ms`);
     console.log(`[${rid}] 📝 Generated transcript (${transcript.length} chars)`);
