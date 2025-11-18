@@ -15,7 +15,8 @@ export async function generateCloudStory(
   cloudInfo: CloudInfo,
   weatherData: WeatherData,
   location: { city: string; region: string; lat: number; lon: number },
-  children?: Child[]
+  children?: Child[],
+  locationSeed?: string
 ): Promise<string> {
   const temp = Math.round(weatherData.main.temp);
   const windSpeed = Math.round(weatherData.wind.speed);
@@ -40,7 +41,8 @@ Address them by name warmly and use their correct pronouns. Make it feel like yo
   }
 
   const miloPresent = isMiloPresent(cloudInfo);
-  const adventureCity = getRandomMiloLocation();
+  // Use seed to make Milo's location deterministic for cache consistency
+  const adventureCity = getRandomMiloLocation(locationSeed);
 
   if (miloPresent) {
     return generateMiloFoundStory(

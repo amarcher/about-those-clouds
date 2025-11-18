@@ -4,7 +4,7 @@
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY!;
 const ELEVENLABS_VOICE_ID =
-  process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
+  process.env.ELEVENLABS_VOICE_ID || '6Ac71viMXq5tLn2bwYdz';
 
 export async function generateSpeech(text: string): Promise<Buffer> {
   console.log(`Generating speech with ElevenLabs (${text.length} chars)...`);

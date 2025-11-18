@@ -60,12 +60,17 @@ export async function POST(req: NextRequest) {
       audioUrl = cachedAudio.audio_url;
       transcript = cachedAudio.transcript;
     } else {
+      // Create deterministic seed for Milo location (changes every hour)
+      const now = new Date();
+      const hourSeed = `${locationHash}-${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}`;
+
       // Generate story with Claude (no personalization in test endpoint)
       transcript = await generateCloudStory(
         cloudInfo,
         weatherData,
         location,
-        undefined
+        undefined,
+        hourSeed
       );
 
       // Convert to speech with Google TTS
