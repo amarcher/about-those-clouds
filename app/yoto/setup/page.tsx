@@ -65,6 +65,16 @@ export default function YotoSetupPage() {
       if (data.success) {
         setAccessToken(data.access_token);
         setUserId(`user_${Date.now()}`);
+
+        // Log token for copying to environment variables
+        console.log('='.repeat(80));
+        console.log('🔑 YOTO ACCESS TOKEN:');
+        console.log(data.access_token);
+        console.log('='.repeat(80));
+        console.log('Copy this token and add it to your .env.local and Vercel:');
+        console.log('YOTO_ACCESS_TOKEN=' + data.access_token);
+        console.log('='.repeat(80));
+
         setStep('personalize');
         return; // Stop polling
       }

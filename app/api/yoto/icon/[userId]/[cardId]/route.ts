@@ -39,17 +39,17 @@ export async function GET(
       console.log('Fetched fresh weather for icon, cloud type:', cloudInfo.type);
     }
 
-    // Redirect to static PNG icon based on cloud type
+    // Redirect to locally hosted Yoto emoji icon
     const iconPath = `/icons/${cloudInfo.type.toLowerCase()}.png`;
     const iconUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${iconPath}`;
 
-    console.log('Redirecting to icon:', iconUrl);
+    console.log('Redirecting to local icon:', iconUrl);
 
     return Response.redirect(iconUrl, 302);
   } catch (error) {
     console.error('Icon generation error:', error);
 
-    // Redirect to default cumulus icon on error
+    // Fallback to cumulus icon
     const defaultIconUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/icons/cumulus.png`;
     return Response.redirect(defaultIconUrl, 302);
   }
