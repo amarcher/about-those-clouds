@@ -8,6 +8,8 @@ import {
   cacheWeatherData,
   isCacheExpired,
 } from '../../../../../cache';
+import { getCloudIcon } from '../../../../../cloud-icons';
+import { getYotoIconUrl, extractIconHash } from '../../../../../yoto-icons';
 
 export async function GET(
   req: NextRequest,
@@ -39,18 +41,34 @@ export async function GET(
       console.log('Fetched fresh weather for icon, cloud type:', cloudInfo.type);
     }
 
-    // Redirect to static PNG icon based on cloud type
-    const iconPath = `/icons/${cloudInfo.type.toLowerCase()}.png`;
-    const iconUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${iconPath}`;
+    // Get Yoto emoji icon ID for this cloud type
+    const yotoIconId = getCloudIcon(cloudInfo.type);
+    const iconHash = extractIconHash(yotoIconId);
+    console.log('Cloud type:', cloudInfo.type, 'Yoto icon:', yotoIconId);
 
-    console.log('Redirecting to icon:', iconUrl);
+    // Fetch the actual icon URL from Yoto's API
+    const iconUrl = await getYotoIconUrl(iconHash);
 
-    return Response.redirect(iconUrl, 302);
+    if (iconUrl) {
+      console.log('Redirecting to Yoto icon URL:', iconUrl);
+      return Response.redirect(iconUrl, 302);
+    } else {
+      // Fallback: use a default icon ID if we couldn't fetch the URL
+      console.warn('Could not fetch Yoto icon URL, using fallback');
+      // Use cumulus icon as fallback
+      const fallbackHash = extractIconHash(getCloudIcon('cumulus'));
+      const fallbackUrl = await getYotoIconUrl(fallbackHash);
+
+      if (fallbackUrl) {
+        return Response.redirect(fallbackUrl, 302);
+      } else {
+        throw new Error('Unable to fetch any Yoto icon URLs');
+      }
+    }
   } catch (error) {
     console.error('Icon generation error:', error);
 
-    // Redirect to default cumulus icon on error
-    const defaultIconUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/icons/cumulus.png`;
-    return Response.redirect(defaultIconUrl, 302);
+    // Last resort fallback - use a placeholder image or return error
+    return new Response('Icon not available', { status: 404 });
   }
 }
