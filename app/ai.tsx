@@ -3,35 +3,18 @@ import type { CloudInfo, WeatherData, Child } from './types';
 import { isMiloPresent } from './cloud-identification';
 import {
   getRandomMiloLocation,
-  calculateDistance,
   type CityEvent,
 } from './milo-locations';
+import {
+  getLocalEvents,
+  formatEventForStory,
+  type LocalEvent,
+} from './local-events';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Generate accurate kid-friendly distance comparisons
-function getKidFriendlyDistance(miles: number): string {
-  if (miles < 10) {
-    return `just ${miles} mile${miles === 1 ? '' : 's'} away`;
-  } else if (miles < 50) {
-    const schoolBuses = Math.round(miles * 293); // 1 mile ≈ 293 school buses (18 feet each)
-    return `about ${miles} miles away - that's like lining up ${schoolBuses.toLocaleString()} school buses!`;
-  } else if (miles < 200) {
-    const hours = Math.round(miles / 60); // driving at 60mph
-    return `about ${miles} miles away - that's about ${hours} hour${hours === 1 ? '' : 's'} by car`;
-  } else if (miles < 1000) {
-    const footballFields = Math.round((miles * 5280) / 360); // 1 mile = 5280 feet, football field = 360 feet
-    return `about ${miles.toLocaleString()} miles away - that's like ${footballFields.toLocaleString()} football fields!`;
-  } else if (miles < 3000) {
-    const states = Math.round(miles / 200); // rough average state width
-    return `about ${miles.toLocaleString()} miles away - that's like crossing ${states} states!`;
-  } else {
-    const country = miles > 2500 ? 'all the way across the United States' : 'halfway across the country';
-    return `about ${miles.toLocaleString()} miles away - that's ${country}!`;
-  }
-}
 
 export async function generateCloudStory(
   cloudInfo: CloudInfo,
@@ -66,6 +49,9 @@ Address them by name warmly and use their correct pronouns. Make it feel like yo
   // Use seed to make Milo's location deterministic for cache consistency
   const adventureCity = getRandomMiloLocation(locationSeed);
 
+  // Fetch local events for the user's location
+  const localEvent = await getLocalEvents(location.lat, location.lon);
+
   if (miloPresent) {
     return generateMiloFoundStory(
       cloudInfo,
@@ -73,23 +59,18 @@ Address them by name warmly and use their correct pronouns. Make it feel like yo
       adventureCity,
       temp,
       windSpeed,
-      personalization
+      personalization,
+      localEvent
     );
   } else {
-    const distance = calculateDistance(
-      location.lat,
-      location.lon,
-      adventureCity.lat,
-      adventureCity.lon
-    );
     return generateMiloAwayStory(
       cloudInfo,
       location,
       adventureCity,
-      distance,
       temp,
       windSpeed,
-      personalization
+      personalization,
+      localEvent
     );
   }
 }
@@ -100,8 +81,20 @@ async function generateMiloFoundStory(
   adventureCity: CityEvent,
   temp: number,
   windSpeed: number,
-  personalization: string
+  personalization: string,
+  localEvent: LocalEvent | null
 ): Promise<string> {
+  // Build event context if available
+  let eventContext = '';
+  if (localEvent) {
+    const { timing, description } = formatEventForStory(localEvent);
+    if (timing === 'today') {
+      eventContext = `\n- LOCAL EVENT HAPPENING TODAY: ${description}`;
+    } else {
+      eventContext = `\n- UPCOMING LOCAL EVENT: ${description}`;
+    }
+  }
+
   const prompt = `You are an enthusiastic storyteller sharing exciting news with children about Milo the Cloud!${personalization}
 
 MILO THE CLOUD CHARACTER:
@@ -114,7 +107,7 @@ CURRENT SITUATION - MILO IS HERE! 🎉
 - Cloud type overhead: ${cloudInfo.scientificName} (${cloudInfo.kidFriendlyName})
 - Temperature: ${temp}°F, Wind: ${windSpeed} mph
 - Milo just traveled from: ${adventureCity.city}, ${adventureCity.country}
-- What Milo watched there: ${adventureCity.event}
+- What Milo watched there: ${adventureCity.event}${eventContext}
 
 YOUR TASK:
 Create a 60-90 second audio story that:
@@ -123,7 +116,13 @@ Create a 60-90 second audio story that:
 
 2. **Where Milo Came From** (25-35 sec): Tell a warm, vivid story about Milo's recent adventure in ${adventureCity.city}, ${adventureCity.country}. Describe what Milo watched: "${adventureCity.event}". Make it visual and magical - what did Milo see from up in the sky? What sounds, colors, and happy feelings did Milo experience?
 
-3. **Why Milo Came Here** (15-20 sec): Explain that Milo floated all this way because they wanted to visit ${location.city}! Maybe Milo heard something wonderful about this place, or is excited to see what's happening here today.
+3. **Why Milo Came Here / Local Event** (15-25 sec): ${
+    localEvent
+      ? formatEventForStory(localEvent).timing === 'today'
+        ? `Mention that something exciting is happening in ${location.city} today - ${formatEventForStory(localEvent).description}! Milo came to watch and is so excited to see it from the sky. Make it sound magical that Milo arrived just in time!`
+        : `Mention that Milo heard about something exciting coming up in ${location.city} - ${formatEventForStory(localEvent).description}! Milo wants to stick around to see it and is already excited about watching it from the sky.`
+      : `Explain that Milo floated all this way because they wanted to visit ${location.city}! Maybe Milo heard something wonderful about this place, or is excited to see what's happening here.`
+  }
 
 4. **Invitation** (10-15 sec): Encourage the listener to go outside and look up - wave at Milo! Milo can see them from up there and is so happy to be visiting.
 
@@ -150,24 +149,21 @@ async function generateMiloAwayStory(
   cloudInfo: CloudInfo,
   location: { city: string; region: string },
   adventureCity: CityEvent,
-  distance: number,
   temp: number,
   windSpeed: number,
-  personalization: string
+  personalization: string,
+  localEvent: LocalEvent | null
 ): Promise<string> {
-  // Estimate return time based on wind speed (cloud travel speed)
-  const avgCloudSpeed = 20; // mph average
-  const currentSpeed = windSpeed || avgCloudSpeed;
-  const daysToReturn = Math.ceil(distance / (currentSpeed * 24));
-  const returnEstimate =
-    daysToReturn === 0
-      ? 'maybe even later today'
-      : daysToReturn === 1
-        ? 'in about a day'
-        : `in about ${daysToReturn} days`;
-
-  // Get accurate kid-friendly distance comparison
-  const kidFriendlyDistance = getKidFriendlyDistance(distance);
+  // Build event context if available
+  let eventContext = '';
+  if (localEvent) {
+    const { timing, description } = formatEventForStory(localEvent);
+    if (timing === 'today') {
+      eventContext = `\n- LOCAL EVENT HAPPENING TODAY: ${description}`;
+    } else {
+      eventContext = `\n- UPCOMING LOCAL EVENT: ${description}`;
+    }
+  }
 
   const prompt = `You are an enthusiastic storyteller sharing news with children about where Milo the Cloud is today!${personalization}
 
@@ -180,10 +176,8 @@ CURRENT SITUATION - MILO IS SOMEWHERE ELSE 🔍
 - Listener's location: ${location.city}, ${location.region}
 - Current sky: ${cloudInfo.scientificName} (${cloudInfo.kidFriendlyName}) - NOT Milo today
 - Milo's location: ${adventureCity.city}, ${adventureCity.country}
-- Distance away: ${kidFriendlyDistance}
 - What Milo is watching: ${adventureCity.event}
-- Temperature here: ${temp}°F, Wind: ${windSpeed} mph
-- When Milo might return: ${returnEstimate}
+- Temperature here: ${temp}°F, Wind: ${windSpeed} mph${eventContext}
 
 YOUR TASK:
 Create a 60-90 second audio story that:
@@ -192,9 +186,15 @@ Create a 60-90 second audio story that:
 
 2. **Milo's Current Adventure** (35-45 sec): Paint a vivid, exciting picture of Milo's current location in ${adventureCity.city}, ${adventureCity.country}. Describe what Milo is watching: "${adventureCity.event}". Make it magical - what does Milo see from the sky? What happy things are happening? Use sensory details (colors, sounds, feelings).
 
-3. **The Distance** (10-15 sec): Mention that Milo is ${kidFriendlyDistance}. Use this EXACT phrasing - don't make up your own comparisons.
+3. **Local Event Connection** (15-25 sec): ${
+    localEvent
+      ? formatEventForStory(localEvent).timing === 'today'
+        ? `Mention that something exciting is happening in ${location.city} today - ${formatEventForStory(localEvent).description}! Milo is sorry to be missing it but sends happy thoughts from ${adventureCity.city}. Make it sweet and show Milo cares about their friends back home.`
+        : `Mention that Milo heard about something exciting coming up in ${location.city} - ${formatEventForStory(localEvent).description}! Milo is going to try to make it back in time to watch from the sky. Build anticipation and hope that Milo will return for it!`
+      : `Mention that Milo misses ${location.city} and will float back when the wind carries them this way again. Maybe next time they check, Milo will be right overhead!`
+  }
 
-4. **When Milo Returns** (15-20 sec): Based on the wind and weather, Milo might drift back to ${location.city} ${returnEstimate}! Encourage them to check back - maybe Milo will be floating overhead next time they look up!
+4. **Encouraging Close** (10-15 sec): Encourage them to keep looking up at the sky - Milo could drift back anytime! And even though Milo isn't there today, the clouds overhead are still beautiful and worth watching.
 
 TONE: Warm, optimistic, adventurous. Make distance feel exciting (not sad). Kids should feel like they're tracking a friend on an adventure!
 
