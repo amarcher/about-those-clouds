@@ -1,121 +1,97 @@
 // ============================================================================
-// lib/local-events.ts - Fetch kid-friendly local events using Ticketmaster API
+// lib/local-events.ts - Find kid-friendly local events using AI-powered web search
 // ============================================================================
+
+import Anthropic from '@anthropic-ai/sdk';
 
 export interface LocalEvent {
   name: string;
-  date: string; // ISO date string
+  date: string; // Human-readable date
   venue: string;
   category: string;
   daysAway: number; // 0 for today, 1 for tomorrow, etc.
 }
 
-// Excluded keywords (adult-oriented events)
-const EXCLUDED_KEYWORDS = [
-  'casino',
-  'adult only',
-  'nightclub',
-  'bar crawl',
-  'poker',
-  '21+',
-  '18+',
-  'wine tasting',
-  'brewery tour',
-  'singles',
-  'dating',
-  'burlesque',
-  'comedy',
-  'standup',
-];
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 export async function getLocalEvents(
-  latitude: number,
-  longitude: number,
-  radiusMiles: number = 25
+  city: string,
+  region: string
 ): Promise<LocalEvent | null> {
-  const apiKey = process.env.TICKETMASTER_API_KEY;
-
-  // If no API key, return null (graceful degradation)
-  if (!apiKey) {
-    console.warn('TICKETMASTER_API_KEY not set, skipping events fetch');
-    return null;
-  }
-
   try {
-    // Search for events in the next 14 days
-    const startDate = new Date().toISOString();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 14);
-
-    // Ticketmaster Discovery API endpoint
-    const params = new URLSearchParams({
-      apikey: apiKey,
-      latlong: `${latitude.toFixed(4)},${longitude.toFixed(4)}`,
-      radius: radiusMiles.toString(),
-      unit: 'miles',
-      startDateTime: startDate,
-      endDateTime: endDate.toISOString(),
-      size: '50', // Get more events to filter through
-      sort: 'date,asc', // Soonest first
-      classificationName: 'Family,Festival,Arts & Theatre', // Kid-friendly categories
-    });
-
-    const response = await fetch(
-      `https://app.ticketmaster.com/discovery/v2/events.json?${params}`
-    );
-
-    if (!response.ok) {
-      console.error('Ticketmaster API error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (!data._embedded?.events || data._embedded.events.length === 0) {
-      return null;
-    }
-
-    // Filter to kid-friendly events
-    const kidFriendlyEvents = data._embedded.events.filter((event: any) => {
-      const nameLower = event.name.toLowerCase();
-      const infoLower = (event.info || '').toLowerCase();
-      const combined = `${nameLower} ${infoLower}`;
-
-      // Exclude adult-oriented events
-      if (EXCLUDED_KEYWORDS.some((keyword) => combined.includes(keyword))) {
-        return false;
-      }
-
-      return true;
-    });
-
-    if (kidFriendlyEvents.length === 0) {
-      return null;
-    }
-
-    // Get the first kid-friendly event
-    const event = kidFriendlyEvents[0];
-
-    // Calculate days away
-    const eventDate = new Date(
-      event.dates.start.dateTime || event.dates.start.localDate
-    );
+    // Get current date info for search context
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const daysAway = Math.floor(
-      (eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const month = today.toLocaleDateString('en-US', { month: 'long' });
+    const year = today.getFullYear();
 
-    return {
-      name: event.name,
-      date: event.dates.start.localDate,
-      venue: event._embedded?.venues?.[0]?.name || 'a local venue',
-      category:
-        event.classifications?.[0]?.segment?.name || 'community event',
-      daysAway: Math.max(0, daysAway),
-    };
+    // Use Claude with search tools to find local events
+    const message = await anthropic.messages.create({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 1024,
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: `Find ONE upcoming kid-friendly or family event happening in ${city}, ${region} in the next 2 weeks (${month} ${year}).
+
+Look for:
+- Family festivals, fairs, parades
+- Community celebrations (holiday events, town festivals)
+- Farmers markets, outdoor concerts
+- Library story times, children's museum events
+- School or community sports events
+- Arts & crafts fairs, outdoor movie nights
+
+EXCLUDE:
+- Adult-only events (bars, nightclubs, comedy shows)
+- Ticketed concerts by major artists (focus on community events)
+- Private events or fundraisers requiring registration
+
+Return ONLY a JSON object with this exact format (no markdown, no explanation):
+{
+  "name": "Event name",
+  "date": "Human-readable date (e.g., 'Saturday, January 25' or 'this Saturday')",
+  "venue": "Location or venue name",
+  "category": "Type of event (e.g., 'festival', 'parade', 'community event')",
+  "daysAway": number of days from today (0 for today, 1 for tomorrow, etc.)
+}
+
+If you cannot find any suitable events, return: {"found": false}`,
+        },
+      ],
+    });
+
+    // Process the response
+    let result = null;
+    for (const block of message.content) {
+      if (block.type === 'text') {
+        try {
+          const jsonMatch = block.text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.found === false) {
+              return null;
+            }
+            if (parsed.name && parsed.date) {
+              result = parsed as LocalEvent;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse event JSON:', e);
+        }
+      }
+    }
+
+    return result;
   } catch (error) {
-    console.error('Error fetching local events:', error);
+    console.error('Error finding local events:', error);
     return null;
   }
 }
