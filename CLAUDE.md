@@ -86,13 +86,14 @@ Each type includes scientific name, kid-friendly name, altitude, description, an
 
 ### Local Events Integration
 
-The `getLocalEvents()` function (`app/local-events.ts`) fetches kid-friendly community events from Eventbrite API to add intrigue to Milo's stories:
+The `getLocalEvents()` function (`app/local-events.ts`) fetches kid-friendly community events from Ticketmaster Discovery API to add intrigue to Milo's stories:
 
 **Event Discovery**:
 - Searches within 25-mile radius of user's location
 - Looks for events in next 14 days
-- Prioritizes free community events (festivals, parades, farmers markets, library events, etc.)
-- Filters out adult-oriented content
+- Focuses on kid-friendly categories: Family, Festivals, Arts & Theatre
+- Filters out adult-oriented content (comedy shows, bars, 21+ events)
+- Free tier: 5,000 API calls/day
 
 **Story Integration**:
 - If Milo is present AND event is today: Milo came to watch the event from the sky
@@ -101,7 +102,7 @@ The `getLocalEvents()` function (`app/local-events.ts`) fetches kid-friendly com
 - If Milo is away AND event is upcoming: Milo will try to make it back in time
 
 **Graceful Degradation**:
-- If no `EVENTBRITE_TOKEN` is set, events are skipped (feature degrades gracefully)
+- If no `TICKETMASTER_API_KEY` is set, events are skipped (feature degrades gracefully)
 - If no kid-friendly events found, stories proceed without event mentions
 
 ## Environment Variables
@@ -121,7 +122,7 @@ ANTHROPIC_API_KEY=
 GOOGLE_CLOUD_API_KEY=
 
 # Local Events (optional - gracefully degrades if not provided)
-EVENTBRITE_TOKEN=
+TICKETMASTER_API_KEY=
 
 # Yoto OAuth
 YOTO_CLIENT_ID=
@@ -146,7 +147,7 @@ Supabase tables:
 - `app/geolocation.ts` - IP extraction and geolocation
 - `app/weather.ts` - OpenWeather API integration
 - `app/cloud-identification.ts` - Cloud classification algorithm
-- `app/local-events.ts` - Eventbrite API integration for kid-friendly community events
+- `app/local-events.ts` - Ticketmaster Discovery API integration for kid-friendly events
 - `app/ai.tsx` - Claude AI story generation with local events integration
 - `app/google-tts.ts` - Google Cloud TTS integration
 - `app/cache.ts` - Supabase client, caching, and storage utilities

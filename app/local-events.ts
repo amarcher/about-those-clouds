@@ -1,5 +1,5 @@
 // ============================================================================
-// lib/local-events.ts - Fetch kid-friendly local events using Eventbrite API
+// lib/local-events.ts - Fetch kid-friendly local events using Ticketmaster API
 // ============================================================================
 
 export interface LocalEvent {
@@ -10,49 +10,22 @@ export interface LocalEvent {
   daysAway: number; // 0 for today, 1 for tomorrow, etc.
 }
 
-// Keywords that indicate kid-friendly community events
-const KID_FRIENDLY_KEYWORDS = [
-  'family',
-  'kids',
-  'children',
-  'festival',
-  'fair',
-  'parade',
-  'farmers market',
-  'community',
-  'library',
-  'story time',
-  'craft',
-  'park',
-  'outdoor',
-  'celebration',
-  'fireworks',
-  'holiday',
-  'easter',
-  'halloween',
-  'christmas',
-  'arts and crafts',
-  'puppet',
-  'magic show',
-  'zoo',
-  'museum',
-  'aquarium',
-];
-
 // Excluded keywords (adult-oriented events)
 const EXCLUDED_KEYWORDS = [
   'casino',
-  'adult',
+  'adult only',
   'nightclub',
   'bar crawl',
   'poker',
   '21+',
   '18+',
   'wine tasting',
-  'brewery',
+  'brewery tour',
   'singles',
   'dating',
   'burlesque',
+  'comedy',
+  'standup',
 ];
 
 export async function getLocalEvents(
@@ -60,80 +33,60 @@ export async function getLocalEvents(
   longitude: number,
   radiusMiles: number = 25
 ): Promise<LocalEvent | null> {
-  const token = process.env.EVENTBRITE_TOKEN;
+  const apiKey = process.env.TICKETMASTER_API_KEY;
 
-  // If no token, return null (graceful degradation)
-  if (!token) {
-    console.warn('EVENTBRITE_TOKEN not set, skipping events fetch');
+  // If no API key, return null (graceful degradation)
+  if (!apiKey) {
+    console.warn('TICKETMASTER_API_KEY not set, skipping events fetch');
     return null;
   }
 
   try {
-    // Convert radius to kilometers for Eventbrite API
-    const radiusKm = Math.round(radiusMiles * 1.60934);
-
     // Search for events in the next 14 days
     const startDate = new Date().toISOString();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 14);
 
-    // Eventbrite search endpoint
+    // Ticketmaster Discovery API endpoint
     const params = new URLSearchParams({
-      'location.latitude': latitude.toFixed(4),
-      'location.longitude': longitude.toFixed(4),
-      'location.within': `${radiusKm}km`,
-      'start_date.range_start': startDate,
-      'start_date.range_end': endDate.toISOString(),
-      expand: 'venue,category',
-      'price': 'free', // Prioritize free community events
-      'sort_by': 'date',
+      apikey: apiKey,
+      latlong: `${latitude.toFixed(4)},${longitude.toFixed(4)}`,
+      radius: radiusMiles.toString(),
+      unit: 'miles',
+      startDateTime: startDate,
+      endDateTime: endDate.toISOString(),
+      size: '50', // Get more events to filter through
+      sort: 'date,asc', // Soonest first
+      classificationName: 'Family,Festival,Arts & Theatre', // Kid-friendly categories
     });
 
     const response = await fetch(
-      `https://www.eventbriteapi.com/v3/events/search/?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `https://app.ticketmaster.com/discovery/v2/events.json?${params}`
     );
 
     if (!response.ok) {
-      console.error('Eventbrite API error:', response.status);
+      console.error('Ticketmaster API error:', response.status);
       return null;
     }
 
     const data = await response.json();
 
-    if (!data.events || data.events.length === 0) {
+    if (!data._embedded?.events || data._embedded.events.length === 0) {
       return null;
     }
 
-    // Filter to kid-friendly community events
-    const kidFriendlyEvents = data.events.filter((event: any) => {
-      const nameLower = event.name.text.toLowerCase();
-      const descLower = (event.description?.text || '').toLowerCase();
-      const combined = `${nameLower} ${descLower}`;
+    // Filter to kid-friendly events
+    const kidFriendlyEvents = data._embedded.events.filter((event: any) => {
+      const nameLower = event.name.toLowerCase();
+      const infoLower = (event.info || '').toLowerCase();
+      const combined = `${nameLower} ${infoLower}`;
 
       // Exclude adult-oriented events
       if (EXCLUDED_KEYWORDS.some((keyword) => combined.includes(keyword))) {
         return false;
       }
 
-      // Include if it matches kid-friendly keywords
-      const isKidFriendly = KID_FRIENDLY_KEYWORDS.some((keyword) =>
-        combined.includes(keyword)
-      );
-
-      // Also include events in kid-friendly categories
-      const categoryName = event.category?.name?.toLowerCase() || '';
-      const isKidFriendlyCategory =
-        categoryName.includes('family') ||
-        categoryName.includes('community') ||
-        categoryName.includes('arts') ||
-        categoryName.includes('festival');
-
-      return isKidFriendly || isKidFriendlyCategory;
+      return true;
     });
 
     if (kidFriendlyEvents.length === 0) {
@@ -144,7 +97,9 @@ export async function getLocalEvents(
     const event = kidFriendlyEvents[0];
 
     // Calculate days away
-    const eventDate = new Date(event.start.local);
+    const eventDate = new Date(
+      event.dates.start.dateTime || event.dates.start.localDate
+    );
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const daysAway = Math.floor(
@@ -152,10 +107,11 @@ export async function getLocalEvents(
     );
 
     return {
-      name: event.name.text,
-      date: event.start.local,
-      venue: event.venue?.name || 'a local venue',
-      category: event.category?.name || 'community event',
+      name: event.name,
+      date: event.dates.start.localDate,
+      venue: event._embedded?.venues?.[0]?.name || 'a local venue',
+      category:
+        event.classifications?.[0]?.segment?.name || 'community event',
       daysAway: Math.max(0, daysAway),
     };
   } catch (error) {
