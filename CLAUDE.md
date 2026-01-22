@@ -34,10 +34,9 @@ The core workflow transforms real-time weather data into educational audio conte
 1. **IP Geolocation** (`app/geolocation.ts`) - Extracts client IP and resolves to coordinates using ip-api.com
 2. **Weather Data** (`app/weather.ts`) - Fetches current conditions from OpenWeather API
 3. **Cloud Identification** (`app/cloud-identification.ts`) - Classifies cloud type based on coverage, temperature, and weather conditions
-4. **Local Events** (`app/local-events.ts`) - Fetches kid-friendly community events from Eventbrite API (optional)
-5. **Story Generation** (`app/ai.tsx`) - Claude AI generates 60-90 second kid-friendly scripts incorporating local events
-6. **Text-to-Speech** (`app/google-tts.ts`) - Google Cloud TTS converts to MP3 audio
-7. **Storage** (`app/cache.ts`) - Uploads to Supabase Storage and caches for reuse
+4. **Story Generation** (`app/ai.tsx`) - Claude AI with web search generates 60-90 second kid-friendly scripts incorporating local events
+5. **Text-to-Speech** (`app/google-tts.ts`) - Google Cloud TTS converts to MP3 audio
+6. **Storage** (`app/cache.ts`) - Uploads to Supabase Storage and caches for reuse
 
 ### Yoto Integration
 
@@ -86,14 +85,14 @@ Each type includes scientific name, kid-friendly name, altitude, description, an
 
 ### Local Events Integration
 
-The `getLocalEvents()` function (`app/local-events.ts`) uses AI-powered web search to discover kid-friendly community events and add intrigue to Milo's stories:
+Story generation (`app/ai.tsx`) includes AI-powered web search to discover kid-friendly community events and add intrigue to Milo's stories:
 
-**Event Discovery**:
-- Uses Claude with web search to find events in user's city/region
-- Looks for events in next 14 days
+**Event Discovery & Story Generation (Single API Call)**:
+- Claude searches the web for events and generates the story in one request (optimized for speed)
+- Looks for events in next 14 days in user's city/region
 - Focuses on kid-friendly categories: family festivals, fairs, parades, farmers markets, library events, community celebrations
 - Automatically filters out adult-oriented content (bars, nightclubs, comedy shows, 21+ events)
-- No API keys required - uses Claude's web search capability
+- No additional API keys required - uses Claude's web search capability
 
 **Story Integration**:
 - If Milo is present AND event is today: Milo came to watch the event from the sky
@@ -101,9 +100,9 @@ The `getLocalEvents()` function (`app/local-events.ts`) uses AI-powered web sear
 - If Milo is away AND event is today: Milo is sorry to be missing it
 - If Milo is away AND event is upcoming: Milo will try to make it back in time
 
-**Graceful Degradation**:
-- If no kid-friendly events found, stories proceed without event mentions
-- Search failures are handled silently
+**Performance**:
+- Single Claude API call with web search (~7-9 seconds)
+- Previous approach: 2 sequential calls (~15-18 seconds)
 
 ## Environment Variables
 
@@ -144,8 +143,7 @@ Supabase tables:
 - `app/geolocation.ts` - IP extraction and geolocation
 - `app/weather.ts` - OpenWeather API integration
 - `app/cloud-identification.ts` - Cloud classification algorithm
-- `app/local-events.ts` - AI-powered web search for kid-friendly local events
-- `app/ai.tsx` - Claude AI story generation with local events integration
+- `app/ai.tsx` - Claude AI story generation with integrated web search for local events
 - `app/google-tts.ts` - Google Cloud TTS integration
 - `app/cache.ts` - Supabase client, caching, and storage utilities
 
