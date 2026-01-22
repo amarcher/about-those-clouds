@@ -86,13 +86,14 @@ Each type includes scientific name, kid-friendly name, altitude, description, an
 
 ### Local Events Integration
 
-The `getLocalEvents()` function (`app/local-events.ts`) fetches kid-friendly community events from Eventbrite API to add intrigue to Milo's stories:
+The `getLocalEvents()` function (`app/local-events.ts`) uses AI-powered web search to discover kid-friendly community events and add intrigue to Milo's stories:
 
 **Event Discovery**:
-- Searches within 25-mile radius of user's location
+- Uses Claude with web search to find events in user's city/region
 - Looks for events in next 14 days
-- Prioritizes free community events (festivals, parades, farmers markets, library events, etc.)
-- Filters out adult-oriented content
+- Focuses on kid-friendly categories: family festivals, fairs, parades, farmers markets, library events, community celebrations
+- Automatically filters out adult-oriented content (bars, nightclubs, comedy shows, 21+ events)
+- No API keys required - uses Claude's web search capability
 
 **Story Integration**:
 - If Milo is present AND event is today: Milo came to watch the event from the sky
@@ -101,8 +102,8 @@ The `getLocalEvents()` function (`app/local-events.ts`) fetches kid-friendly com
 - If Milo is away AND event is upcoming: Milo will try to make it back in time
 
 **Graceful Degradation**:
-- If no `EVENTBRITE_TOKEN` is set, events are skipped (feature degrades gracefully)
 - If no kid-friendly events found, stories proceed without event mentions
+- Search failures are handled silently
 
 ## Environment Variables
 
@@ -119,9 +120,6 @@ OPENWEATHER_API_KEY=
 # AI and TTS
 ANTHROPIC_API_KEY=
 GOOGLE_CLOUD_API_KEY=
-
-# Local Events (optional - gracefully degrades if not provided)
-EVENTBRITE_TOKEN=
 
 # Yoto OAuth
 YOTO_CLIENT_ID=
@@ -146,7 +144,7 @@ Supabase tables:
 - `app/geolocation.ts` - IP extraction and geolocation
 - `app/weather.ts` - OpenWeather API integration
 - `app/cloud-identification.ts` - Cloud classification algorithm
-- `app/local-events.ts` - Eventbrite API integration for kid-friendly community events
+- `app/local-events.ts` - AI-powered web search for kid-friendly local events
 - `app/ai.tsx` - Claude AI story generation with local events integration
 - `app/google-tts.ts` - Google Cloud TTS integration
 - `app/cache.ts` - Supabase client, caching, and storage utilities

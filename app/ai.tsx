@@ -50,7 +50,7 @@ Address them by name warmly and use their correct pronouns. Make it feel like yo
   const adventureCity = getRandomMiloLocation(locationSeed);
 
   // Fetch local events for the user's location
-  const localEvent = await getLocalEvents(location.lat, location.lon);
+  const localEvent = await getLocalEvents(location.city, location.region);
 
   if (miloPresent) {
     return generateMiloFoundStory(
