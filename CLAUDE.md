@@ -34,9 +34,10 @@ The core workflow transforms real-time weather data into educational audio conte
 1. **IP Geolocation** (`app/geolocation.ts`) - Extracts client IP and resolves to coordinates using ip-api.com
 2. **Weather Data** (`app/weather.ts`) - Fetches current conditions from OpenWeather API
 3. **Cloud Identification** (`app/cloud-identification.ts`) - Classifies cloud type based on coverage, temperature, and weather conditions
-4. **Story Generation** (`app/ai.tsx`) - Claude AI generates 60-90 second kid-friendly scripts
-5. **Text-to-Speech** (`app/google-tts.ts`) - Google Cloud TTS converts to MP3 audio
-6. **Storage** (`app/cache.ts`) - Uploads to Supabase Storage and caches for reuse
+4. **Local Events** (`app/local-events.ts`) - Fetches kid-friendly community events from Eventbrite API (optional)
+5. **Story Generation** (`app/ai.tsx`) - Claude AI generates 60-90 second kid-friendly scripts incorporating local events
+6. **Text-to-Speech** (`app/google-tts.ts`) - Google Cloud TTS converts to MP3 audio
+7. **Storage** (`app/cache.ts`) - Uploads to Supabase Storage and caches for reuse
 
 ### Yoto Integration
 
@@ -83,6 +84,26 @@ The `identifyCloudType()` function (`app/cloud-identification.ts`) maps weather 
 
 Each type includes scientific name, kid-friendly name, altitude, description, and fun fact.
 
+### Local Events Integration
+
+The `getLocalEvents()` function (`app/local-events.ts`) fetches kid-friendly community events from Eventbrite API to add intrigue to Milo's stories:
+
+**Event Discovery**:
+- Searches within 25-mile radius of user's location
+- Looks for events in next 14 days
+- Prioritizes free community events (festivals, parades, farmers markets, library events, etc.)
+- Filters out adult-oriented content
+
+**Story Integration**:
+- If Milo is present AND event is today: Milo came to watch the event from the sky
+- If Milo is present AND event is upcoming: Milo wants to stick around to see it
+- If Milo is away AND event is today: Milo is sorry to be missing it
+- If Milo is away AND event is upcoming: Milo will try to make it back in time
+
+**Graceful Degradation**:
+- If no `EVENTBRITE_TOKEN` is set, events are skipped (feature degrades gracefully)
+- If no kid-friendly events found, stories proceed without event mentions
+
 ## Environment Variables
 
 Required in `.env.local`:
@@ -98,6 +119,9 @@ OPENWEATHER_API_KEY=
 # AI and TTS
 ANTHROPIC_API_KEY=
 GOOGLE_CLOUD_API_KEY=
+
+# Local Events (optional - gracefully degrades if not provided)
+EVENTBRITE_TOKEN=
 
 # Yoto OAuth
 YOTO_CLIENT_ID=
@@ -122,7 +146,8 @@ Supabase tables:
 - `app/geolocation.ts` - IP extraction and geolocation
 - `app/weather.ts` - OpenWeather API integration
 - `app/cloud-identification.ts` - Cloud classification algorithm
-- `app/ai.tsx` - Claude AI story generation
+- `app/local-events.ts` - Eventbrite API integration for kid-friendly community events
+- `app/ai.tsx` - Claude AI story generation with local events integration
 - `app/google-tts.ts` - Google Cloud TTS integration
 - `app/cache.ts` - Supabase client, caching, and storage utilities
 
