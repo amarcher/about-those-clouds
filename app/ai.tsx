@@ -112,7 +112,7 @@ FORMAT: Write ONLY the spoken script. No labels, no stage directions, no mention
 
   const message = await anthropic.messages.create({
     model: 'claude-3-5-haiku-20241022', // 5-10x faster than Sonnet, still high quality
-    max_tokens: 512, // Stories are ~300-400 tokens, save costs
+    max_tokens: 1024, // Increased to account for tool use + story
     tools: [
       {
         type: 'web_search_20250305',
@@ -127,8 +127,19 @@ FORMAT: Write ONLY the spoken script. No labels, no stage directions, no mention
     ],
   });
 
-  const content = message.content[0];
-  return content.type === 'text' ? content.text : '';
+  // Extract text from response (may include tool use blocks before text)
+  let storyText = '';
+  for (const block of message.content) {
+    if (block.type === 'text') {
+      storyText = block.text;
+    }
+  }
+
+  if (!storyText) {
+    console.error('[generateMiloFoundStory] No text content in Claude response:', JSON.stringify(message.content));
+  }
+
+  return storyText;
 }
 
 async function generateMiloAwayStory(
@@ -178,7 +189,7 @@ FORMAT: Write ONLY the spoken script. No labels, no stage directions, no mention
 
   const message = await anthropic.messages.create({
     model: 'claude-3-5-haiku-20241022', // 5-10x faster than Sonnet, still high quality
-    max_tokens: 512, // Stories are ~300-400 tokens, save costs
+    max_tokens: 1024, // Increased to account for tool use + story
     tools: [
       {
         type: 'web_search_20250305',
@@ -193,6 +204,17 @@ FORMAT: Write ONLY the spoken script. No labels, no stage directions, no mention
     ],
   });
 
-  const content = message.content[0];
-  return content.type === 'text' ? content.text : '';
+  // Extract text from response (may include tool use blocks before text)
+  let storyText = '';
+  for (const block of message.content) {
+    if (block.type === 'text') {
+      storyText = block.text;
+    }
+  }
+
+  if (!storyText) {
+    console.error('[generateMiloAwayStory] No text content in Claude response:', JSON.stringify(message.content));
+  }
+
+  return storyText;
 }
