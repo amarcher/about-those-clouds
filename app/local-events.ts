@@ -1,122 +1,171 @@
 // ============================================================================
-// lib/local-events.ts - Find kid-friendly local events using AI-powered web search
+// lib/local-events.ts - Suggest kid-friendly activities based on weather/time
 // ============================================================================
 
-import Anthropic from '@anthropic-ai/sdk';
+import type { WeatherData } from "./types";
 
-export interface LocalEvent {
-  name: string;
-  date: string; // Human-readable date
-  venue: string;
-  category: string;
-  daysAway: number; // 0 for today, 1 for tomorrow, etc.
+export interface SuggestedActivity {
+  activity: string; // e.g., "splashing in a sprinkler at the park"
 }
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
+type Season = "spring" | "summer" | "fall" | "winter";
 
-export async function getLocalEvents(
-  city: string,
-  region: string
-): Promise<LocalEvent | null> {
-  try {
-    // Get current date info for search context
-    const today = new Date();
-    const month = today.toLocaleDateString('en-US', { month: 'long' });
-    const year = today.getFullYear();
+const PRECIPITATION_ACTIVITIES: Record<string, string[]> = {
+  Snow: [
+    "building a snowman",
+    "making snow angels",
+    "catching snowflakes on their tongues",
+  ],
+  Thunderstorm: [
+    "watching the lightning from the window",
+    "counting seconds between thunder and lightning",
+  ],
+  Rain: ["jumping in puddles with rain boots", "listening to rain on the roof"],
+  Drizzle: [
+    "jumping in puddles with rain boots",
+    "listening to rain on the roof",
+  ],
+};
 
-    // Use Claude with search tools to find local events
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-        },
+const NIGHT_ACTIVITIES = [
+  "snuggled up with a bedtime story",
+  "looking at the stars",
+];
+
+const SEASON_ACTIVITIES: Record<
+  Season,
+  {
+    condition: (temp: number, timeOfDay: TimeOfDay) => boolean;
+    activities: string[];
+  }[]
+> = {
+  summer: [
+    {
+      condition: (temp) => temp > 80,
+      activities: [
+        "splashing in a sprinkler at the park",
+        "swimming at the pool",
+        "eating popsicles on the front porch",
       ],
-      messages: [
-        {
-          role: 'user',
-          content: `Find ONE upcoming kid-friendly or family event happening in ${city}, ${region} in the next 2 weeks (${month} ${year}).
+    },
+    {
+      condition: (_temp, timeOfDay) => timeOfDay === "evening",
+      activities: ["catching fireflies in the backyard"],
+    },
+  ],
+  spring: [
+    {
+      condition: () => true,
+      activities: [
+        "flying kites in the breeze",
+        "planting flowers in the garden",
+        "riding bikes around the neighborhood",
+      ],
+    },
+  ],
+  fall: [
+    {
+      condition: () => true,
+      activities: [
+        "jumping in leaf piles",
+        "picking apples at an orchard",
+        "going on a hayride",
+      ],
+    },
+  ],
+  winter: [
+    {
+      condition: (temp) => temp < 40,
+      activities: [
+        "making hot cocoa",
+        "building a blanket fort",
+        "ice skating at the rink",
+      ],
+    },
+  ],
+};
 
-Look for:
-- Family festivals, fairs, parades
-- Community celebrations (holiday events, town festivals)
-- Farmers markets, outdoor concerts
-- Library story times, children's museum events
-- School or community sports events
-- Arts & crafts fairs, outdoor movie nights
+const MILD_ACTIVITIES = [
+  "riding bikes around the neighborhood",
+  "playing at the playground",
+  "walking the dog around the block",
+];
 
-EXCLUDE:
-- Adult-only events (bars, nightclubs, comedy shows)
-- Ticketed concerts by major artists (focus on community events)
-- Private events or fundraisers requiring registration
+const WARM_ACTIVITIES = ["eating ice cream", "playing at the park"];
 
-Return ONLY a JSON object with this exact format (no markdown, no explanation):
-{
-  "name": "Event name",
-  "date": "Human-readable date (e.g., 'Saturday, January 25' or 'this Saturday')",
-  "venue": "Location or venue name",
-  "category": "Type of event (e.g., 'festival', 'parade', 'community event')",
-  "daysAway": number of days from today (0 for today, 1 for tomorrow, etc.)
+function getLocalHour(weatherData: WeatherData): number {
+  const nowUtcMs = Date.now();
+  const localMs = nowUtcMs + weatherData.timezone * 1000;
+  const localDate = new Date(localMs);
+  return localDate.getUTCHours();
 }
 
-If you cannot find any suitable events, return: {"found": false}`,
-        },
-      ],
-    });
+function getTimeOfDay(hour: number): TimeOfDay {
+  if (hour >= 6 && hour <= 11) return "morning";
+  if (hour >= 12 && hour <= 17) return "afternoon";
+  if (hour >= 18 && hour <= 20) return "evening";
+  return "night";
+}
 
-    // Process the response
-    let result = null;
-    for (const block of message.content) {
-      if (block.type === 'text') {
-        try {
-          const jsonMatch = block.text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.found === false) {
-              return null;
-            }
-            if (parsed.name && parsed.date) {
-              result = parsed as LocalEvent;
-            }
-          }
-        } catch (e) {
-          console.error('Failed to parse event JSON:', e);
-        }
-      }
+function getSeason(month: number): Season {
+  if (month >= 3 && month <= 5) return "spring";
+  if (month >= 6 && month <= 8) return "summer";
+  if (month >= 9 && month <= 11) return "fall";
+  return "winter";
+}
+
+/**
+ * Simple hash to deterministically pick from an array.
+ * Uses date + temp + hour so same conditions = same pick.
+ */
+function deterministicPick(items: string[], seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return items[Math.abs(hash) % items.length];
+}
+
+export function suggestActivity(weatherData: WeatherData): SuggestedActivity {
+  const hour = getLocalHour(weatherData);
+  const timeOfDay = getTimeOfDay(hour);
+  const temp = Math.round(weatherData.main.temp);
+  const weatherMain = weatherData.weather[0]?.main ?? "Clear";
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1-12
+  const season = getSeason(month);
+
+  // Seed for deterministic picks: date + temp + hour
+  const seed = `${now.toISOString().slice(0, 10)}-${temp}-${hour}`;
+
+  // 1. Precipitation overrides
+  const precipActivities = PRECIPITATION_ACTIVITIES[weatherMain];
+  if (precipActivities) {
+    return { activity: deterministicPick(precipActivities, seed) };
+  }
+
+  // 2. Night
+  if (timeOfDay === "night") {
+    return { activity: deterministicPick(NIGHT_ACTIVITIES, seed) };
+  }
+
+  // 3. Season + temp + time of day
+  const seasonEntries = SEASON_ACTIVITIES[season];
+  for (const entry of seasonEntries) {
+    if (entry.condition(temp, timeOfDay)) {
+      return { activity: deterministicPick(entry.activities, seed) };
     }
-
-    return result;
-  } catch (error) {
-    console.error('Error finding local events:', error);
-    return null;
-  }
-}
-
-// Helper function to format event for story context
-export function formatEventForStory(event: LocalEvent): {
-  timing: 'today' | 'soon';
-  description: string;
-} {
-  const timing = event.daysAway === 0 ? 'today' : 'soon';
-
-  let timePhrase: string;
-  if (event.daysAway === 0) {
-    timePhrase = 'today';
-  } else if (event.daysAway === 1) {
-    timePhrase = 'tomorrow';
-  } else if (event.daysAway <= 3) {
-    timePhrase = 'in just a few days';
-  } else if (event.daysAway <= 7) {
-    timePhrase = 'next week';
-  } else {
-    timePhrase = 'soon';
   }
 
-  const description = `${event.name} ${timePhrase} at ${event.venue}`;
+  // 4. Generic fallbacks based on temp
+  if (temp >= 50 && temp <= 75) {
+    return { activity: deterministicPick(MILD_ACTIVITIES, seed) };
+  }
+  if (temp > 75 && temp <= 90) {
+    return { activity: deterministicPick(WARM_ACTIVITIES, seed) };
+  }
 
-  return { timing, description };
+  // Ultimate fallback
+  return { activity: deterministicPick(MILD_ACTIVITIES, seed) };
 }

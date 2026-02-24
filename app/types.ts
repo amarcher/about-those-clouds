@@ -8,20 +8,21 @@ export interface WeatherData {
   main: { temp: number; humidity: number; pressure: number };
   wind: { speed: number };
   coord: { lat: number; lon: number };
+  timezone: number; // UTC offset in seconds
 }
 
 export type CloudType =
-  | 'cumulus'
-  | 'cumulonimbus'
-  | 'stratus'
-  | 'nimbostratus'
-  | 'stratocumulus'
-  | 'cirrus'
-  | 'cirrostratus'
-  | 'cirrocumulus'
-  | 'altocumulus'
-  | 'altostratus'
-  | 'clear';
+  | "cumulus"
+  | "cumulonimbus"
+  | "stratus"
+  | "nimbostratus"
+  | "stratocumulus"
+  | "cirrus"
+  | "cirrostratus"
+  | "cirrocumulus"
+  | "altocumulus"
+  | "altostratus"
+  | "clear";
 
 export interface CloudInfo {
   type: CloudType;
@@ -42,5 +43,5 @@ export interface Location {
 export interface Child {
   name: string;
   age: number;
-  pronouns: 'he/him' | 'she/her' | 'they/them';
+  pronouns: "he/him" | "she/her" | "they/them";
 }
