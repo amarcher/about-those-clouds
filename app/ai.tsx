@@ -131,7 +131,7 @@ TONE: Joyful, magical, wonder-filled. Use simple words (ages 5-10). Make kids fe
 FORMAT: Write ONLY the spoken script. No labels, no stage directions. Just the story as you'd tell it excitedly to a child.`;
 
   const message = await anthropic.messages.create({
-    model: 'claude-3-5-haiku-20241022', // 5-10x faster than Sonnet, still high quality
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 512, // Stories are ~300-400 tokens, save costs
     messages: [
       {
@@ -201,7 +201,7 @@ TONE: Warm, optimistic, adventurous. Make distance feel exciting (not sad). Kids
 FORMAT: Write ONLY the spoken script. No labels, no stage directions. Just the story told warmly to a child.`;
 
   const message = await anthropic.messages.create({
-    model: 'claude-3-5-haiku-20241022', // 5-10x faster than Sonnet, still high quality
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 512, // Stories are ~300-400 tokens, save costs
     messages: [
       {
